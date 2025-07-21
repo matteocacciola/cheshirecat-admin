@@ -1,0 +1,12 @@
+[server]
+fileWatcherType = "poll"
+
+[global]
+# Ignore certain file patterns
+fileWatcherPatterns = [
+    "**/__pycache__/**",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/.git/**",
+    "**/node_modules/**"
+]

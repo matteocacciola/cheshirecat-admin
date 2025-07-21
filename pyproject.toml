@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=45"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cheshirecat-admin"
+version = "0.1.0"
+description = "Python package for the Cheshire Cat Admin UI"
+authors = [
+    {name = "Matteo Cacciola", email = "matteo.cacciola@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "cheshirecat-python-sdk",
+    "python-dotenv",
+    "python-slugify",
+    "requests",
+    "streamlit",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pylint",
+    "pylint-actions",
+    "perflint",
+]
+
+[project.urls]
+Homepage = "https://github.com/matteocacciola/cheshirecat-admin"
+Repository = "https://github.com/matteocacciola/cheshirecat-admin"
+Issues = "https://github.com/matteocacciola/cheshirecat-admin/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.coverage.run]
+source = ["app"]
+
+[tool.pylint]
+max-line-length = 180
+disable = [
+    "C0301",
+    "C0103",
+    "C0114",
+    "E1120",
+    "E0401",
+    "C0115",
+    "C0116",
+    "E1101",
+    "R0801",
+    "C0202",
+    "W0406",
+    "W1514",
+    "W0201",
+    "W0511",
+]
+
+[tool.pylint.main]
+load-plugins = ["pylint_actions", "perflint"]
+
+[tool.black]
+line-length = 180
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

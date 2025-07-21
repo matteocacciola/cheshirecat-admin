@@ -1,0 +1,16 @@
+__pycache__
+*.egg-info
+.env
+*mypy_cache
+*.pytest_cache
+
+# python local dev
+venv
+.venv
+
+.DS_Store
+.idea
+
+*.pyc
+dist/
+build/

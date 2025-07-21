@@ -1,0 +1,89 @@
+import json
+import time
+import streamlit as st
+from cheshirecat_python_sdk import CheshireCatClient
+
+from app.constants import CLIENT_CONFIGURATION
+from app.utils import get_factory_settings, build_agents_select
+
+
+def list_vector_databases(agent_id: str):
+    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    st.header("Vector Databases")
+
+    try:
+        settings = client.vector_database.get_vector_databases_settings(agent_id)
+
+        st.write("### Available Vector Databases")
+        if settings.settings:
+            for vector_database in settings.settings:
+                col1, col2, col3 = st.columns([0.8, 0.05, 0.15])
+                is_selected = vector_database.name == settings.selected_configuration
+                with col1:
+                    with st.expander(vector_database.name):
+                        st.json(get_factory_settings(vector_database, is_selected))
+
+                with col2:
+                    if is_selected:
+                        st.write('<div class="picked">✅</div>', unsafe_allow_html=True)
+
+                with col3:
+                    if st.button("Edit" if is_selected else "Select", key=f"edit_{vector_database.name}"):
+                        edit_vector_database(agent_id, vector_database.name, is_selected)
+        else:
+            st.info("No vector database found")
+    except Exception as e:
+        st.error(f"Error fetching vector databases: {e}")
+
+
+@st.dialog(title="Edit Vector Database", width="large")
+def edit_vector_database(agent_id: str, vector_database_name: str, is_selected: bool):
+    client = CheshireCatClient(CLIENT_CONFIGURATION)
+
+    try:
+        vector_db_settings = client.vector_database.get_vector_database_settings(vector_database_name, agent_id)
+
+        with st.form("edit_vector_database_form"):
+            st.write(f"Editing: **{vector_database_name}**")
+
+            # Display current settings as editable JSON
+            edited_settings = st.text_area(
+                "Settings (JSON format)",
+                value=json.dumps(get_factory_settings(vector_db_settings, is_selected), indent=4),
+                height=300
+            )
+
+            st.write("**Note:** Make sure to keep the JSON format valid. You can use online JSON validators if needed.")
+            st.divider()
+
+            submitted = st.form_submit_button("Save Changes")
+            if submitted:
+                try:
+                    settings_dict = json.loads(edited_settings)
+
+                    client.vector_database.put_vector_database_settings(
+                        vector_database=vector_database_name,
+                        agent_id=agent_id,
+                        values=settings_dict
+                    )
+                    st.toast(f"Vector database {vector_database_name} updated successfully!", icon="✅")
+                except json.JSONDecodeError:
+                    st.toast("Invalid JSON format", icon="❌")
+                except Exception as e:
+                    st.toast(f"Error updating vector database: {e}", icon="❌")
+
+                time.sleep(3)  # Wait for a moment before rerunning
+                st.rerun()
+    except Exception as e:
+        st.error(f"Error fetching vector database settings: {e}")
+        if st.button("Back to list"):
+            st.rerun()
+
+
+def vector_databases_management(container):
+    st.title("Vector Databases Management Dashboard")
+
+    with container:
+        build_agents_select()
+    if "agent_id" in st.session_state:
+        list_vector_databases(st.session_state.agent_id)
