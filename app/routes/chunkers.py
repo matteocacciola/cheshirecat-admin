@@ -43,7 +43,7 @@ def edit_chunker(agent_id: str, chunker_name: str, is_selected: bool):
     try:
         chunker_settings = client.chunker.get_chunker_settings(chunker_name, agent_id)
 
-        with st.form("edit_chunker_form"):
+        with st.form("edit_chunker_form", clear_on_submit=True):
             st.write(f"Editing: **{chunker_name}**")
 
             # Display current settings as editable JSON

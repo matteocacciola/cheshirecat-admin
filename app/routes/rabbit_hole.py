@@ -1,8 +1,10 @@
 import os
 import tempfile
+import time
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from cheshirecat_python_sdk import CheshireCatClient, Collection
 import json
+import base64
 
 from app.constants import CLIENT_CONFIGURATION
 from app.utils import build_agents_select
@@ -42,7 +44,7 @@ def upload_files(agent_id: str):
         st.session_state.remove_index = None
         st.rerun()
 
-    with st.form("upload_files_form"):
+    with st.form("upload_files_form", clear_on_submit=True):
         # Display each file-metadata pair
         for i, pair in enumerate(st.session_state.file_metadata_pairs):
             col1, col2, col3 = st.columns([1, 1, 0.5])
@@ -98,13 +100,12 @@ def upload_files(agent_id: str):
 
             if not has_errors and file_paths:
                 try:
-                    response = client.rabbit_hole.post_files(
+                    client.rabbit_hole.post_files(
                         file_paths=file_paths,
                         agent_id=agent_id,
                         metadata=metadata_dict,
                     )
                     st.toast(f"Successfully uploaded {len(file_paths)} files!", icon="✅")
-                    st.json(response.model_dump())
                     # Clear the files after successful upload
                     st.session_state.file_metadata_pairs = [{"file": None, "metadata": "{}"}]
                 except Exception as e:
@@ -122,7 +123,7 @@ def upload_url(agent_id: str):
     client = CheshireCatClient(CLIENT_CONFIGURATION)
     st.header("Upload from URL")
 
-    with st.form("upload_url_form"):
+    with st.form("upload_url_form", clear_on_submit=True):
         url = st.text_input(
             "Website URL",
             placeholder="https://example.com"
@@ -138,13 +139,12 @@ def upload_url(agent_id: str):
         if submitted:
             try:
                 metadata_dict = json.loads(metadata)
-                response = client.rabbit_hole.post_web(
+                client.rabbit_hole.post_web(
                     web_url=url,
                     agent_id=agent_id,
                     metadata=metadata_dict
                 )
                 st.toast(f"URL {url} is being ingested!", icon="✅")
-                st.json(response.model_dump())
             except json.JSONDecodeError:
                 st.toast("Invalid JSON format in metadata", icon="❌")
             except Exception as e:
@@ -163,16 +163,86 @@ def list_files(agent_id: str):
         st.write(f"**Total size of uploaded files**: {files.size} bytes")
 
         for file in files.files:
-            with st.expander(f"{file.name} ({file.size} bytes)"):
-                st.write(f"**Name**: {file.name}")
-                st.write(f"**Size**: {file.size}")
-                st.write(f"**Last modified**: {file.last_modified}")
+            col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
+
+            with col1:
+                chunks = client.memory.get_memory_points(
+                    agent_id=agent_id,
+                    collection=Collection.DECLARATIVE,
+                    metadata={"source": file.name},
+                )
+
+                with st.expander(f"{file.name} ({file.size} bytes)"):
+                    st.write(f"**Name**: {file.name}")
+                    st.write(f"**Size**: {file.size}")
+                    st.write(f"**Last modified**: {file.last_modified}")
+                    st.write(f"**Chunks**: {len(chunks.points)}")
+
+            with col2:
+                if st.button("Download", key=file.name):
+                    try:
+                        response = client.file_manager.get_file(agent_id, file.name)
+
+                        # Convert to base64 for JavaScript
+                        file_data = base64.b64encode(response.content).decode()
+
+                        # Inject JavaScript to trigger download
+                        st.components.v1.html(
+                            f"""
+                            <script>
+                            function downloadFile() {{
+                                const link = document.createElement('a');
+                                link.href = 'data:application/octet-stream;base64,{file_data}';
+                                link.download = '{file.name}';
+                                link.click();
+                            }}
+                            downloadFile();
+                            </script>
+                            """,
+                            height=0
+                        )
+                        st.toast("Download started!", icon="✅")
+                    except Exception as e:
+                        st.toast(f"Error downloading file: {e}", icon="❌")
+
+            with col3:
+                if st.button("Delete", key=f"delete_{file.name}", type="primary", help="Permanently delete this file"):
+                    st.session_state["file_to_delete"] = file
+
+        # Delete confirmation
+        if "file_to_delete" in st.session_state:
+            file = st.session_state["file_to_delete"]
+            st.warning(f"⚠️ Are you sure you want to permanently delete file `{file.name}`?")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Yes, Delete File", type="primary"):
+                    try:
+                        with st.spinner(f"Deleting file {file.name}..."):
+                            client.memory.delete_memory_points_by_metadata(
+                                collection=Collection.DECLARATIVE,
+                                agent_id=agent_id,
+                                metadata={"source": file.name}
+                            )
+                            st.toast(f"File {file.name} deleted successfully!", icon="✅")
+                            st.session_state.pop("file_to_delete", None)
+                            time.sleep(3)  # Wait for a moment before rerunning
+                            st.rerun()
+                    except Exception as e:
+                        st.error(f"Error deleting admin: {e}", icon="❌")
+            with col2:
+                if st.button("Cancel"):
+                    st.session_state.pop("file_to_delete", None)
+                    st.rerun()
     except Exception as e:
-        st.error(f"Error fetching files: {e}")
+        st.toast(f"Error fetching files: {e}", icon="❌")
 
 
 def rabbit_hole_management(container):
     st.title("Knowledge Base Management")
+
+    st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
+    please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the CheshireCat.""")
 
     with container:
         build_agents_select()

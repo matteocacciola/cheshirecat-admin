@@ -7,12 +7,12 @@ from app.utils import build_agents_select, build_users_select
 
 
 def chat(container):
+    st.header("Chat with the CheshireCat")
+
     with container:
         build_agents_select()
     if "agent_id" in st.session_state:
         agent_id = st.session_state.agent_id
-
-        st.header("Chat with the CheshireCat")
 
         build_users_select(agent_id)
 

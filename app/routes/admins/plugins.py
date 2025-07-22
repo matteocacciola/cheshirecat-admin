@@ -1,9 +1,10 @@
+import json
 import time
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.constants import CLIENT_CONFIGURATION
-from app.utils import get_factory_settings
+from app.utils import get_factory_settings, build_agents_select
 
 
 def list_plugins():
@@ -22,25 +23,27 @@ def list_plugins():
 
         st.subheader("Installed plugins")
         st.write(f"Found {len(plugins.installed)} plugins:")
-        # for each installed plugins, create an expander, a button to view details, and a button to uninstall
+        # for each installed plugins, create an expander, a button to view details, a button to uninstall and a button to manage settings
         for installed_plugin in plugins.installed:
             # Action buttons
-            col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
+            col1, col2, col3, col4 = st.columns([0.7, 0.1, 0.1, 0.1])
 
             with col1:
                 with st.expander(f"Plugin: {installed_plugin.name} (ID: {installed_plugin.id})", icon="🔌"):
                     st.json(installed_plugin.model_dump())
 
+            if installed_plugin.id != "core_plugin":
                 with col2:
                     if st.button("View Details", key=f"view_{installed_plugin.id}"):
                         view_plugin_details(installed_plugin.id)
 
                 with col3:
-                    if (
-                            installed_plugin.id != "core_plugin"
-                            and st.button("Uninstall Plugin", key=f"uninstall_{installed_plugin.id}", type="primary", help="Uninstall this plugin")
-                    ):
+                    if st.button("Uninstall Plugin", key=f"uninstall_{installed_plugin.id}", type="primary", help="Uninstall this plugin"):
                         st.session_state["plugin_to_uninstall"] = installed_plugin.id
+
+                with col4:
+                    if st.button("Manage", key=f"manage{installed_plugin.id}"):
+                        manage_plugin(installed_plugin.id)
 
         # Uninstall confirmation
         if "plugin_to_uninstall" in st.session_state:
@@ -69,7 +72,7 @@ def list_plugins():
             col1, col2 = st.columns([0.7, 0.3])
 
             with col1:
-                with st.expander(f"Plugin: {registry_plugin.name} (ID: {registry_plugin.id})", icon="🔌"):
+                with st.expander(f"Plugin: {registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
                     st.write(f"**Version**: {registry_plugin.version}")
                     st.write(f"**Author**: {registry_plugin.author_name} - [Profile]({registry_plugin.author_url})")
                     st.write(f"**Description**: {registry_plugin.description or 'No description provided'}")
@@ -135,7 +138,7 @@ def view_plugin_details(plugin_id: str):
         col1, col2 = st.columns(2)
 
         with col1:
-            if plugin_id != "core_plugin" and st.button("Uninstall Plugin", type="primary"):
+            if st.button("Uninstall Plugin", type="primary"):
                 try:
                     result = client.plugins.delete_plugin(plugin_id)
                     st.toast(f"Plugin {result.deleted} uninstalled successfully!", icon="✅")
@@ -151,11 +154,82 @@ def view_plugin_details(plugin_id: str):
             st.rerun()
 
 
+@st.dialog(title="Manage Plugin", width="large")
+def manage_plugin(plugin_id: str):
+    build_agents_select()
+    if "agent_id" in st.session_state:
+        agent_id = st.session_state.agent_id
+        client = CheshireCatClient(CLIENT_CONFIGURATION)
+
+        # fetch the plugin
+        try:
+            plugins_installed = client.plugins.get_available_plugins(agent_id, plugin_id).installed
+            is_plugin_installed = any(plugin.id == plugin_id for plugin in plugins_installed)
+        except Exception as e:
+            st.error(f"Error fetching plugin: {e}")
+            return
+
+        # if the plugin is installed, fetch its settings and display them in a form to be edited
+        st.header(f"Manage Plugin: {plugin_id}")
+        if is_plugin_installed:
+            try:
+                plugin_settings = client.plugins.get_plugin_settings(plugin_id, agent_id)
+
+                st.subheader("Plugin Settings")
+                with st.form("plugin_settings_form", clear_on_submit=True):
+                    # Display current settings as editable JSON
+                    edited_settings = st.text_area(
+                        "Settings (JSON format)",
+                        value=json.dumps(get_factory_settings(plugin_settings, True), indent=4),
+                        height=300
+                    )
+
+                    st.write(
+                        "**Note:** Make sure to keep the JSON format valid. You can use online JSON validators if needed.")
+                    st.divider()
+
+                    submitted = st.form_submit_button("Save Changes")
+                    if submitted:
+                        try:
+                            settings_dict = json.loads(edited_settings)
+                            client.plugins.put_plugin_settings(plugin_id, agent_id, settings_dict)
+                            st.toast(f"Plugin {plugin_id} settings updated successfully!", icon="✅")
+                        except json.JSONDecodeError:
+                            st.toast("Invalid JSON format", icon="❌")
+                        except Exception as e:
+                            st.toast(f"Error updating plugin settings: {e}", icon="❌")
+
+                    time.sleep(3)  # Wait for a moment before rerunning
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Error fetching plugin settings: {e}")
+
+        # in any case, display a button to toggle the plugin
+        st.divider()
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Toggle Plugin", type="primary"):
+                try:
+                    result = client.plugins.put_toggle_plugin(plugin_id, agent_id)
+                    st.toast(f"Plugin {plugin_id} toggled successfully!", icon="✅")
+                    st.json(result.model_dump())
+                except Exception as e:
+                    st.toast(f"Error toggling plugin: {e}", icon="❌")
+
+                time.sleep(3)  # Wait for a moment before rerunning
+                st.rerun()
+
+        with col2:
+            if st.button("Back to list"):
+                st.rerun()
+
+
 def install_plugin_from_file():
     client = CheshireCatClient(CLIENT_CONFIGURATION)
     st.header("Install Plugin from File")
 
-    with st.form("upload_plugin_form"):
+    with st.form("upload_plugin_form", clear_on_submit=True):
         uploaded_file = st.file_uploader(
             "Choose a plugin ZIP file",
             type=["zip"],

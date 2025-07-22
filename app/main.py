@@ -90,13 +90,13 @@ def render_sidebar_navigation():
     navigation_options = {
         "💬 Chat": "chat",
         "👥 Admins": "admins",
-        "🔌 Admin Plugins": "plugins",
         "🧬 AI Models": "ai_models",
         "🔐 Authentication Handlers": "auth_handlers",
         "🔪 Chunkers": "chunkers",
         "🧠 Embedders": "embedders",
         "📁 File Handlers": "file_handlers",
         "📚 Knowledge Base": "rag",
+        "🔌 Plugins": "plugins",
         "👥 Users": "users",
         "🔗 Vector Databases": "vector_databases",
         "🗂️ Vector Memory": "memory",
@@ -148,9 +148,6 @@ def main():
     elif current_page == "admins":
         from app.routes.admins.crud import admin_management
         admin_management(submenu_container)
-    elif current_page == "plugins":
-        from app.routes.admins.plugins import admin_plugins_management
-        admin_plugins_management(submenu_container)
     elif current_page == "ai_models":
         from app.routes.llms import llms_management
         llms_management(submenu_container)
@@ -169,6 +166,9 @@ def main():
     elif current_page == "rag":
         from app.routes.rabbit_hole import rabbit_hole_management
         rabbit_hole_management(submenu_container)
+    elif current_page == "plugins":
+        from app.routes.admins.plugins import admin_plugins_management
+        admin_plugins_management(submenu_container)
     elif current_page == "users":
         from app.routes.users import users_management
         users_management(submenu_container)

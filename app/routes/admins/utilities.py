@@ -122,7 +122,7 @@ def create_agent():
     client = CheshireCatClient(CLIENT_CONFIGURATION)
     st.header("Create New Agent")
 
-    with st.form("create_agent_form"):
+    with st.form("create_agent_form", clear_on_submit=True):
         agent_id = st.text_input("Agent ID", help="Unique identifier for the new agent")
 
         submitted = st.form_submit_button("Create Agent")

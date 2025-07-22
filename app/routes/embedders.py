@@ -43,7 +43,7 @@ def edit_embedder(embedder_name: str, is_selected: bool):
     try:
         embedder_settings = client.embedder.get_embedder_settings(embedder_name)
 
-        with st.form("edit_embedder_form"):
+        with st.form("edit_embedder_form", clear_on_submit=True):
             st.write(f"Editing: **{embedder_name}**")
 
             # Display current settings as editable JSON

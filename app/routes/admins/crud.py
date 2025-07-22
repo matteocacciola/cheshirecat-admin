@@ -9,7 +9,7 @@ def create_admin():
     client = CheshireCatClient(CLIENT_CONFIGURATION)
 
     st.header("Create New Admin")
-    with st.form("create_admin_form"):
+    with st.form("create_admin_form", clear_on_submit=True):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
 
@@ -123,7 +123,7 @@ def update_admin(admin_id: str):
         st.error(f"Admin with ID `{admin_id}` not found")
         return
 
-    with st.form("update_admin_form"):
+    with st.form("update_admin_form", clear_on_submit=True):
         new_username = st.text_input("Username", value=admin_data.username)
         new_password = st.text_input("Password (leave blank to keep current)", type="password")
 

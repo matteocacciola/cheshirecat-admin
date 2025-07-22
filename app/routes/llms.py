@@ -43,7 +43,7 @@ def edit_llm(agent_id: str, llm_name: str, is_selected: bool):
     try:
         llm_settings = client.large_language_model.get_large_language_model_settings(llm_name, agent_id)
 
-        with st.form("edit_llm_form"):
+        with st.form("edit_llm_form", clear_on_submit=True):
             st.write(f"Editing: **{llm_name}**")
 
             # Display current settings as editable JSON

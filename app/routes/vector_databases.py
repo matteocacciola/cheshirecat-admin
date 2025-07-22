@@ -43,7 +43,7 @@ def edit_vector_database(agent_id: str, vector_database_name: str, is_selected: 
     try:
         vector_db_settings = client.vector_database.get_vector_database_settings(vector_database_name, agent_id)
 
-        with st.form("edit_vector_database_form"):
+        with st.form("edit_vector_database_form", clear_on_submit=True):
             st.write(f"Editing: **{vector_database_name}**")
 
             # Display current settings as editable JSON

@@ -43,7 +43,7 @@ def edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool):
     try:
         file_manager_settings = client.file_manager.get_file_manager_settings(file_manager_name, agent_id)
 
-        with st.form("edit_file_manager_form"):
+        with st.form("edit_file_manager_form", clear_on_submit=True):
             st.write(f"Editing: **{file_manager_name}**")
 
             # Display current settings as editable JSON
@@ -82,6 +82,9 @@ def edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool):
 
 def file_managers_management(container):
     st.title("File Managers Management Dashboard")
+
+    st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
+    please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the CheshireCat.""")
 
     with container:
         build_agents_select()

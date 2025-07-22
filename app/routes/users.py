@@ -10,7 +10,7 @@ def create_user(agent_id: str):
     client = CheshireCatClient(CLIENT_CONFIGURATION)
 
     st.header("Create New User")
-    with st.form("create_user_form"):
+    with st.form("create_user_form", clear_on_submit=True):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
 
@@ -122,7 +122,7 @@ def update_user(agent_id: str, user_id: str):
         st.error(f"User with ID `{user_id}` not found")
         return
 
-    with st.form("update_user_form"):
+    with st.form("update_user_form", clear_on_submit=True):
         new_username = st.text_input("Username", value=user_data.username)
         new_password = st.text_input("Password (leave blank to keep current)", type="password")
 
