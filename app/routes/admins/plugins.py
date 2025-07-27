@@ -186,7 +186,7 @@ def manage_plugin(plugin_id: str):
                     # Display current settings as editable JSON
                     edited_settings = st.text_area(
                         "Settings (JSON format)",
-                        value=json.dumps(get_factory_settings(plugin_settings, True), indent=4),
+                        value=json.dumps(get_factory_settings(plugin_settings, is_selected=True), indent=4),
                         height=300
                     )
 
@@ -214,6 +214,14 @@ def manage_plugin(plugin_id: str):
         else:
             st.warning("""This plugin is not currently active for the selected agent.
 You have to activate the plugin before managing its settings.""")
+
+            try:
+                plugin_settings = client.admins.get_plugin_settings(plugin_id)
+                print(plugin_settings)
+                with st.expander("Plugin's default configuration", icon="⚙️"):
+                    st.json(get_factory_settings(plugin_settings, is_selected=True))
+            except Exception as e:
+                st.error(f"Error fetching plugin settings: {e}")
 
         st.divider()
 
