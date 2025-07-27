@@ -19,7 +19,7 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
         A dictionary containing the settings of the factory.
     """
     return factory.value if is_selected else {
-        k: v.get("default") for k, v in factory.scheme.get("properties", {}).items()
+        k: v.get("default") for k, v in factory.scheme.get("properties", {}).items() if isinstance(v, dict)
     }
 
 
@@ -57,3 +57,45 @@ def run_toast():
     toast = st.session_state["toast"]
     st.toast(toast["message"], icon=toast["icon"])
     st.session_state.pop("toast", None)
+
+
+def show_overlay_spinner(message="Processing..."):
+    """Show a full-page overlay spinner"""
+    spinner_container = st.empty()
+    with spinner_container.container():
+        st.markdown(f"""
+        <style>
+        .overlay-spinner {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 18px;
+        }}
+        .spinner {{
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin-right: 15px;
+        }}
+        @keyframes spin {{
+            0% {{ transform: rotate(0deg); }}
+            100% {{ transform: rotate(360deg); }}
+        }}
+        </style>
+        <div class="overlay-spinner">
+            <div class="spinner"></div>
+            <div>{message}</div>
+        </div>
+        """, unsafe_allow_html=True)
+    return spinner_container

@@ -7,7 +7,7 @@ import json
 import base64
 
 from app.constants import CLIENT_CONFIGURATION
-from app.utils import build_agents_select
+from app.utils import build_agents_select, show_overlay_spinner
 
 
 def upload_files(agent_id: str):
@@ -64,8 +64,7 @@ def upload_files(agent_id: str):
                         st.session_state.remove_index = i
                         st.rerun()
 
-        submitted = st.form_submit_button("📤 Upload Files")
-        if submitted:
+        if st.form_submit_button("📤 Upload Files"):
             file_paths = []
             metadata_dict = {}
             has_errors = False
@@ -100,6 +99,8 @@ def upload_files(agent_id: str):
 
             if not has_errors and file_paths:
                 try:
+                    spinner_container = show_overlay_spinner(f"Loading files to RAG...")
+
                     client.rabbit_hole.post_files(
                         file_paths=file_paths,
                         agent_id=agent_id,
@@ -111,6 +112,7 @@ def upload_files(agent_id: str):
                 except Exception as e:
                     st.toast(f"Error uploading files: {e}", icon="❌")
                 finally:
+                    spinner_container.empty()  # Remove the spinner
                     # Clean up temporary files
                     for temp_file_path in temp_files:
                         try:
@@ -135,9 +137,10 @@ def upload_url(agent_id: str):
             help="Enter metadata to be stored with the content"
         )
 
-        submitted = st.form_submit_button("Upload URL")
-        if submitted:
+        if st.form_submit_button("Upload URL"):
             try:
+                spinner_container = show_overlay_spinner(f"Loading URL to RAG...")
+
                 metadata_dict = json.loads(metadata)
                 client.rabbit_hole.post_web(
                     web_url=url,
@@ -149,6 +152,8 @@ def upload_url(agent_id: str):
                 st.toast("Invalid JSON format in metadata", icon="❌")
             except Exception as e:
                 st.toast(f"Error uploading URL: {e}", icon="❌")
+            finally:
+                spinner_container.empty()
 
 
 def list_files(agent_id: str):
@@ -218,18 +223,22 @@ def list_files(agent_id: str):
             with col1:
                 if st.button("Yes, Delete File", type="primary"):
                     try:
-                        with st.spinner(f"Deleting file {file.name}..."):
-                            client.memory.delete_memory_points_by_metadata(
-                                collection=Collection.DECLARATIVE,
-                                agent_id=agent_id,
-                                metadata={"source": file.name}
-                            )
-                            st.toast(f"File {file.name} deleted successfully!", icon="✅")
-                            st.session_state.pop("file_to_delete", None)
-                            time.sleep(1)  # Wait for a moment before rerunning
-                            st.rerun()
+                        spinner_container = show_overlay_spinner(f"Deleting file {file.name}...")
+
+                        client.memory.delete_memory_points_by_metadata(
+                            collection=Collection.DECLARATIVE,
+                            agent_id=agent_id,
+                            metadata={"source": file.name}
+                        )
+                        st.toast(f"File {file.name} deleted successfully!", icon="✅")
+                        st.session_state.pop("file_to_delete", None)
+                        time.sleep(1)  # Wait for a moment before rerunning
                     except Exception as e:
                         st.error(f"Error deleting admin: {e}", icon="❌")
+                    finally:
+                        spinner_container.empty()
+
+                    st.rerun()
             with col2:
                 if st.button("Cancel"):
                     st.session_state.pop("file_to_delete", None)

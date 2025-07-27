@@ -3,6 +3,7 @@ import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.constants import CLIENT_CONFIGURATION
+from app.utils import show_overlay_spinner
 
 
 def factory_reset():
@@ -17,9 +18,9 @@ def factory_reset():
     """)
 
     if st.button("Perform Factory Reset", type="primary"):
+        spinner_container = show_overlay_spinner("Performing factory reset...")
         try:
-            with st.spinner("Performing factory reset..."):
-                result = client.admins.post_factory_reset()
+            result = client.admins.post_factory_reset()
 
             if result.deleted_settings and result.deleted_plugin_folders and result.deleted_memories:
                 st.toast("Factory reset completed successfully!", icon="✅")
@@ -32,6 +33,8 @@ def factory_reset():
             })
         except Exception as e:
             st.toast(f"Error performing factory reset: {e}", icon="❌")
+        finally:
+            spinner_container.empty()
 
 
 def list_agents():
@@ -120,20 +123,21 @@ def create_agent():
     with st.form("create_agent_form", clear_on_submit=True):
         agent_id = st.text_input("Agent ID", help="Unique identifier for the new agent")
 
-        submitted = st.form_submit_button("Create Agent")
-        if submitted:
+        if st.form_submit_button("Create Agent"):
             if not agent_id:
                 st.error("Agent ID is required")
             else:
                 try:
-                    with st.spinner(f"Creating agent {agent_id}..."):
-                        result = client.admins.post_agent_create(agent_id=agent_id)
+                    spinner_container = show_overlay_spinner(f"Creating agent {agent_id}...")
+                    result = client.admins.post_agent_create(agent_id=agent_id)
                     if result.created:
                         st.toast(f"Agent {agent_id} created successfully!", icon="✅")
                     else:
                         st.toast(f"Failed to create agent {agent_id}", icon="❌")
                 except Exception as e:
                     st.toast(f"Error creating agent: {e}", icon="❌")
+                finally:
+                    spinner_container.empty()
 
 
 def admin_system_management(container):

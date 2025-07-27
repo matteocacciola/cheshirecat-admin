@@ -3,7 +3,7 @@ import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.constants import CLIENT_CONFIGURATION
-from app.utils import build_agents_select, build_users_select
+from app.utils import build_agents_select, build_users_select, show_overlay_spinner
 
 
 def memory_collections(agent_id: str):
@@ -39,17 +39,22 @@ def memory_collections(agent_id: str):
             with col1:
                 if st.button("Yes, Destroy Collection", type="primary"):
                     try:
-                        with st.spinner(f"Destroying collection {collection}..."):
-                            result = client.memory.delete_all_single_memory_collection_points(collection, agent_id)
+                        spinner_container = show_overlay_spinner(f"Destroying collection {collection}...")
+
+                        result = client.memory.delete_all_single_memory_collection_points(collection, agent_id)
                         if result.deleted[collection]:
                             st.toast(f"Collection {collection} destroyed successfully!", icon="✅")
                             st.session_state.pop("collection_to_delete", None)
                             time.sleep(1)  # Wait for a moment before rerunning
-                            st.rerun()
+
                         else:
                             st.toast(f"Failed to completely destroy collection {collection}", icon="❌")
                     except Exception as e:
                         st.toast(f"Error destroying collection: {e}", icon="❌")
+                    finally:
+                        spinner_container.empty()
+
+                    st.rerun()
             with col2:
                 if st.button("Cancel"):
                     st.session_state.pop("collection_to_delete", None)
@@ -93,17 +98,24 @@ def view_conversation_history(agent_id: str, user_id: str):
             with col1:
                 if st.button("Yes, Delete History", type="primary"):
                     try:
-                        with st.spinner(f"Deleting conversation history for Agent {agent_id}, User {user_id}..."):
-                            result = client.memory.delete_conversation_history(agent_id, user_id)
+                        spinner_container = show_overlay_spinner(
+                            f"Deleting conversation history for Agent {agent_id}, User {user_id}..."
+                        )
+
+                        result = client.memory.delete_conversation_history(agent_id, user_id)
                         if result.deleted:
                             st.toast(f"Conversation history deleted successfully!", icon="✅")
                             st.session_state.pop("history_to_delete", None)
                             time.sleep(1)  # Wait for a moment before rerunning
-                            st.rerun()
+
                         else:
                             st.toast(f"Failed to delete conversation history", icon="❌")
                     except Exception as e:
                         st.toast(f"Error deleting conversation history: {e}", icon="❌")
+                    finally:
+                        spinner_container.empty()
+
+                    st.rerun()
             with col2:
                 if st.button("Cancel"):
                     st.session_state.pop("history_to_delete", None)

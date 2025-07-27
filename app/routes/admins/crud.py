@@ -3,7 +3,7 @@ import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.constants import CLIENT_CONFIGURATION
-from app.utils import run_toast
+from app.utils import run_toast, show_overlay_spinner
 
 
 def create_admin():
@@ -29,19 +29,21 @@ def create_admin():
                     permissions.append(perm)
             selected_permissions[res] = permissions
 
-        submitted = st.form_submit_button("Create Admin")
-        if submitted:
+        if st.form_submit_button("Create Admin"):
             if not username or not password:
                 st.error("Username and password are required")
             elif not selected_permissions:
                 st.error("At least one permission must be selected")
             else:
+                spinner_container = show_overlay_spinner("Creating admin...")
                 try:
                     result = client.admins.post_admin(username, password, selected_permissions)
                     st.toast(f"Admin {result.username} created successfully!", icon="✅")
                     st.json(result)
                 except Exception as e:
                     st.toast(f"Error creating admin: {e}", icon="❌")
+                finally:
+                    spinner_container.empty()
 
 
 def list_admins(skip: int = 0, limit: int = 100):
@@ -85,14 +87,16 @@ def list_admins(skip: int = 0, limit: int = 100):
                 with col1:
                     if st.button("Yes, Delete Admin", type="primary"):
                         try:
-                            with st.spinner(f"Deleting admin {admin.id}..."):
-                                client.admins.delete_admin(admin.id)
-                                st.toast(f"Admin {admin.id} deleted successfully!", icon="✅")
-                                st.session_state.pop("admin_to_delete", None)
-                                time.sleep(1)  # Wait for a moment before rerunning
-                                st.rerun()
+                            spinner_container = show_overlay_spinner(f"Deleting admin {admin.id}...")
+                            client.admins.delete_admin(admin.id)
+                            st.toast(f"Admin {admin.id} deleted successfully!", icon="✅")
+                            st.session_state.pop("admin_to_delete", None)
+                            time.sleep(1)  # Wait for a moment before rerunning
                         except Exception as e:
                             st.error(f"Error deleting admin: {e}", icon="❌")
+                        finally:
+                            spinner_container.empty()
+                        st.rerun()
                 with col2:
                     if st.button("Cancel"):
                         st.session_state.pop("admin_to_delete", None)
@@ -148,13 +152,14 @@ def update_admin(admin_id: str):
 
         st.divider()
 
-        submitted = st.form_submit_button("Update Admin")
-        if submitted:
+        if st.form_submit_button("Update Admin"):
             if not new_username:
                 st.error("Username cannot be empty")
             elif not selected_permissions:
                 st.error("At least one permission must be selected")
             try:
+                spinner_container = show_overlay_spinner(f"Updating admin {admin_id}...")
+
                 result = client.admins.put_admin(
                     admin_id,
                     username=new_username,
@@ -165,6 +170,8 @@ def update_admin(admin_id: str):
                 st.json(result)
             except Exception as e:
                 st.session_state["toast"] = {"message": f"Error updating admin `{admin_id}`: {e}", "icon": "❌"}
+            finally:
+                spinner_container.empty()
 
             st.rerun()
 

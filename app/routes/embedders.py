@@ -3,7 +3,7 @@ import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.constants import CLIENT_CONFIGURATION
-from app.utils import get_factory_settings, run_toast
+from app.utils import get_factory_settings, run_toast, show_overlay_spinner
 
 
 def list_embedders():
@@ -57,9 +57,9 @@ def edit_embedder(embedder_name: str, is_selected: bool):
             st.write("**Note:** Make sure to keep the JSON format valid. You can use online JSON validators if needed.")
             st.divider()
 
-            submitted = st.form_submit_button("Save Changes")
-            if submitted:
+            if st.form_submit_button("Save Changes"):
                 try:
+                    spinner_container = show_overlay_spinner("Saving settings...")
                     settings_dict = json.loads(edited_settings)
 
                     client.embedder.put_embedder_settings(
@@ -73,6 +73,8 @@ def edit_embedder(embedder_name: str, is_selected: bool):
                     st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
                 except Exception as e:
                     st.session_state["toast"] = {"message": f"Error updating embedder: {e}", "icon": "❌"}
+                finally:
+                    spinner_container.empty()
 
                 st.rerun()
     except Exception as e:

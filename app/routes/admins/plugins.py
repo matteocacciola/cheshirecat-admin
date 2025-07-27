@@ -3,7 +3,7 @@ import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.constants import CLIENT_CONFIGURATION
-from app.utils import get_factory_settings, build_agents_select, run_toast
+from app.utils import get_factory_settings, build_agents_select, run_toast, show_overlay_spinner
 
 
 def list_plugins():
@@ -20,7 +20,6 @@ def list_plugins():
         if not plugins:
             st.info("No plugins found matching your search")
             return
-
 
         st.subheader("Installed plugins")
         st.write(f"Found {len(plugins.installed)} plugins:")
@@ -53,14 +52,16 @@ def list_plugins():
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Yes, Uninstall Plugin", type="primary"):
+                    spinner_container = show_overlay_spinner("Uninstalling plugin...")
                     try:
-                        with st.spinner(f"Uninstalling plugin {plugin}..."):
-                            client.plugins.delete_plugin(plugin)
-                            st.toast(f"Plugin {plugin} uninstalled successfully!", icon="✅")
-                            st.session_state.pop("plugin_to_uninstall", None)
-                            st.rerun()
+                        client.plugins.delete_plugin(plugin)
+                        st.toast(f"Plugin {plugin} uninstalled successfully!", icon="✅")
+                        st.session_state.pop("plugin_to_uninstall", None)
                     except Exception as e:
                         st.error(f"Error uninstalling plugin: {e}", icon="❌")
+                    finally:
+                        spinner_container.empty()
+                    st.rerun()
             with col2:
                 if st.button("Cancel"):
                     st.session_state.pop("plugin_to_uninstall", None)
@@ -81,14 +82,17 @@ def list_plugins():
 
             with col2:
                 if st.button("Install Plugin", key=f"install_{registry_plugin.name}"):
+                    spinner_container = show_overlay_spinner("Installing plugin...")
                     plugin_url = registry_plugin.plugin_url
                     try:
                         client.admins.post_install_plugin_from_registry(url=plugin_url)
                         st.toast("Installation successful!", icon="✅")
                     except Exception as e:
                         st.toast(f"Error installing plugin: {e}", icon="❌")
-
+                    finally:
+                        spinner_container.empty()
                     st.rerun()
+
     except Exception as e:
         st.error(f"Error fetching plugins: {e}")
 
@@ -141,6 +145,7 @@ def view_plugin_details(plugin_id: str):
 
         with col1:
             if st.button("Uninstall Plugin", type="primary"):
+                spinner_container = show_overlay_spinner("Uninstalling plugin...")
                 try:
                     result = client.plugins.delete_plugin(plugin_id)
                     st.session_state["toast"] = {
@@ -148,7 +153,8 @@ def view_plugin_details(plugin_id: str):
                     }
                 except Exception as e:
                     st.session_state["toast"] = {"message": f"Error uninstalling plugin: {e}", "icon": "❌"}
-
+                finally:
+                    spinner_container.empty()
                 st.rerun()
 
         with col2:
@@ -197,6 +203,7 @@ def manage_plugin(plugin_id: str):
 
                     submitted = st.form_submit_button("Save Changes")
                     if submitted:
+                        spinner_container = show_overlay_spinner("Saving plugin settings...")
                         try:
                             settings_dict = json.loads(edited_settings)
                             client.plugins.put_plugin_settings(plugin_id, agent_id, settings_dict)
@@ -207,7 +214,8 @@ def manage_plugin(plugin_id: str):
                             st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
                         except Exception as e:
                             st.session_state["toast"] = {"message": f"Error updating plugin settings: {e}", "icon": "❌"}
-
+                        finally:
+                            spinner_container.empty()
                         st.rerun()
             except Exception as e:
                 st.error(f"Error fetching plugin settings: {e}")
@@ -229,6 +237,7 @@ You have to activate the plugin before managing its settings.""")
         # in any case, display a button to toggle / untoggle the plugin
         with col1:
             if st.button(f"{'Untoggle' if is_plugin_installed else 'Toggle'} Plugin", type="primary"):
+                spinner_container = show_overlay_spinner(f"{'Untoggling' if is_plugin_installed else 'Toggling'} plugin...")
                 try:
                     client.plugins.put_toggle_plugin(plugin_id, agent_id)
                     st.session_state["toast"] = {
@@ -240,7 +249,8 @@ You have to activate the plugin before managing its settings.""")
                         "message": f"Error {'untoggling' if is_plugin_installed else 'toggling'} plugin: {e}",
                         "icon": "❌"
                     }
-
+                finally:
+                    spinner_container.empty()
                 st.rerun()
 
         with col2:
@@ -261,6 +271,7 @@ def install_plugin_from_file():
 
         submitted = st.form_submit_button("Install Plugin")
         if submitted and uploaded_file is not None:
+            spinner_container = show_overlay_spinner("Installing plugin from file...")
             try:
                 # Note: The SDK would need to handle file uploads
                 result = client.admins.post_install_plugin_from_zip(path_zip=uploaded_file.name)
@@ -268,6 +279,8 @@ def install_plugin_from_file():
                 st.json(result.model_dump())
             except Exception as e:
                 st.toast(f"Error installing plugin: {e}", icon="❌")
+            finally:
+                spinner_container.empty()
         elif submitted:
             st.toast("Please select a file to upload", icon="⚠️")
 
