@@ -225,7 +225,6 @@ You have to activate the plugin before managing its settings.""")
 
             try:
                 plugin_settings = client.admins.get_plugin_settings(plugin_id)
-                print(plugin_settings)
                 with st.expander("Plugin's default configuration", icon="⚙️"):
                     st.json(get_factory_settings(plugin_settings, is_selected=True))
             except Exception as e:
