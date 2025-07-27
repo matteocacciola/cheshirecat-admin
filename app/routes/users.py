@@ -85,7 +85,7 @@ def list_users(agent_id: str):
                                 client.users.delete_user(agent_id, user.id)
                                 st.toast(f"Admin {user.id} deleted successfully!", icon="✅")
                                 st.session_state.pop("user_to_delete", None)
-                                time.sleep(3)  # Wait for a moment before rerunning
+                                time.sleep(1)  # Wait for a moment before rerunning
                                 st.rerun()
                         except Exception as e:
                             st.error(f"Error deleting user: {e}", icon="❌")

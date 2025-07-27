@@ -1,13 +1,14 @@
 import json
-import time
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.constants import CLIENT_CONFIGURATION
-from app.utils import get_factory_settings
+from app.utils import get_factory_settings, run_toast
 
 
 def list_embedders():
+    run_toast()
+
     client = CheshireCatClient(CLIENT_CONFIGURATION)
     st.header("Embedders")
 
@@ -65,13 +66,14 @@ def edit_embedder(embedder_name: str, is_selected: bool):
                         embedder=embedder_name,
                         values=settings_dict
                     )
-                    st.toast(f"Embedder {embedder_name} updated successfully!", icon="✅")
+                    st.session_state["toast"] = {
+                        "message": f"Embedder {embedder_name} updated successfully!", "icon": "✅"
+                    }
                 except json.JSONDecodeError:
-                    st.toast("Invalid JSON format", icon="❌")
+                    st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
                 except Exception as e:
-                    st.toast(f"Error updating embedder: {e}", icon="❌")
+                    st.session_state["toast"] = {"message": f"Error updating embedder: {e}", "icon": "❌"}
 
-                time.sleep(3)  # Wait for a moment before rerunning
                 st.rerun()
     except Exception as e:
         st.error(f"Error fetching embedder settings: {e}")

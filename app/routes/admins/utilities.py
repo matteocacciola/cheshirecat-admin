@@ -17,24 +17,21 @@ def factory_reset():
     """)
 
     if st.button("Perform Factory Reset", type="primary"):
-        # Confirmation dialog
-        if st.checkbox("I understand this will delete ALL data and cannot be undone"):
-            try:
-                with st.spinner("Performing factory reset..."):
-                    result = client.admins.post_factory_reset()
+        try:
+            with st.spinner("Performing factory reset..."):
+                result = client.admins.post_factory_reset()
 
-                if result.deleted_settings and result.deleted_plugin_folders:
-                    st.toast("Factory reset completed successfully!", icon="✅")
-                    st.json({
-                        "Settings deleted": result.deleted_settings,
-                        "Plugin folders deleted": result.deleted_plugin_folders,
-                        "Memories deleted": result.deleted_memories
-                    })
-                else:
-                    st.toast("Factory reset partially failed", icon="❌")
-                    st.json(result.model_dump())
-            except Exception as e:
-                st.toast(f"Error performing factory reset: {e}", icon="❌")
+            if result.deleted_settings and result.deleted_plugin_folders and result.deleted_memories:
+                st.toast("Factory reset completed successfully!", icon="✅")
+            else:
+                st.toast("Factory reset partially failed", icon="❌")
+            st.json({
+                "Settings deleted": result.deleted_settings,
+                "Plugin folders deleted": result.deleted_plugin_folders,
+                "Memories deleted": result.deleted_memories
+            })
+        except Exception as e:
+            st.toast(f"Error performing factory reset: {e}", icon="❌")
 
 
 def list_agents():
@@ -76,7 +73,7 @@ def list_agents():
                         if result.deleted_settings:
                             st.toast(f"Agent {agent} reset successfully!", icon="✅")
                             st.session_state.pop("agent_to_reset", None)
-                            time.sleep(3)  # Wait for a moment before rerunning
+                            time.sleep(1)  # Wait for a moment before rerunning
                             st.rerun()
                         else:
                             st.toast(f"Failed to reset agent {agent}", icon="❌")
@@ -86,7 +83,6 @@ def list_agents():
             with col2:
                 if st.button("Cancel"):
                     st.session_state.pop("agent_to_reset", None)
-                    time.sleep(3)  # Wait for a moment before rerunning
                     st.rerun()
 
         # Destroy confirmation
@@ -102,7 +98,7 @@ def list_agents():
                         if result.deleted_settings and result.deleted_memories:
                             st.toast(f"Agent {agent} destroyed successfully!", icon="✅")
                             st.session_state.pop("agent_to_destroy", None)
-                            time.sleep(3)  # Wait for a moment before rerunning
+                            time.sleep(1)  # Wait for a moment before rerunning
                             st.rerun()
                         else:
                             st.toast(f"Failed to completely destroy agent {agent}", icon="❌")
@@ -111,7 +107,6 @@ def list_agents():
             with col2:
                 if st.button("Cancel"):
                     st.session_state.pop("agent_to_destroy", None)
-                    time.sleep(3)  # Wait for a moment before rerunning
                     st.rerun()
 
     except Exception as e:

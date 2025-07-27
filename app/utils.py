@@ -49,3 +49,11 @@ def build_users_select(agent_id: str):
         st.session_state.pop("user_id", None)
     else:
         st.session_state["user_id"] = menu_options[choice]
+
+
+def run_toast():
+    if st.session_state.get("toast") is None:
+        return
+    toast = st.session_state["toast"]
+    st.toast(toast["message"], icon=toast["icon"])
+    st.session_state.pop("toast", None)

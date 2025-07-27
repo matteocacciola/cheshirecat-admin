@@ -3,6 +3,7 @@ import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.constants import CLIENT_CONFIGURATION
+from app.utils import run_toast
 
 
 def create_admin():
@@ -44,6 +45,8 @@ def create_admin():
 
 
 def list_admins(skip: int = 0, limit: int = 100):
+    run_toast()
+
     client = CheshireCatClient(CLIENT_CONFIGURATION)
     st.header("List All Admins")
 
@@ -86,7 +89,7 @@ def list_admins(skip: int = 0, limit: int = 100):
                                 client.admins.delete_admin(admin.id)
                                 st.toast(f"Admin {admin.id} deleted successfully!", icon="✅")
                                 st.session_state.pop("admin_to_delete", None)
-                                time.sleep(3)  # Wait for a moment before rerunning
+                                time.sleep(1)  # Wait for a moment before rerunning
                                 st.rerun()
                         except Exception as e:
                             st.error(f"Error deleting admin: {e}", icon="❌")
@@ -158,12 +161,11 @@ def update_admin(admin_id: str):
                     password=new_password or None,
                     permissions=selected_permissions
                 )
-                st.toast(f"Admin {result.username} updated successfully!", icon="✅")
+                st.session_state["toast"] = {"message": f"Admin {result.username} updated successfully!", "icon": "✅"}
                 st.json(result)
             except Exception as e:
-                st.toast(f"Error updating admin `{admin_id}`: {e}", icon="❌")
+                st.session_state["toast"] = {"message": f"Error updating admin `{admin_id}`: {e}", "icon": "❌"}
 
-            time.sleep(2)
             st.rerun()
 
 

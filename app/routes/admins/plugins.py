@@ -1,13 +1,14 @@
 import json
-import time
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.constants import CLIENT_CONFIGURATION
-from app.utils import get_factory_settings, build_agents_select
+from app.utils import get_factory_settings, build_agents_select, run_toast
 
 
 def list_plugins():
+    run_toast()
+
     client = CheshireCatClient(CLIENT_CONFIGURATION)
     st.header("Available Plugins")
 
@@ -23,7 +24,7 @@ def list_plugins():
 
         st.subheader("Installed plugins")
         st.write(f"Found {len(plugins.installed)} plugins:")
-        # for each installed plugins, create an expander, a button to view details, a button to uninstall and a button to manage settings
+        # for each installed plugin, create an expander, a button to view details, a button to uninstall and a button to manage settings
         for installed_plugin in plugins.installed:
             # Action buttons
             col1, col2, col3, col4 = st.columns([0.7, 0.1, 0.1, 0.1])
@@ -57,7 +58,6 @@ def list_plugins():
                             client.plugins.delete_plugin(plugin)
                             st.toast(f"Plugin {plugin} uninstalled successfully!", icon="✅")
                             st.session_state.pop("plugin_to_uninstall", None)
-                            time.sleep(3)  # Wait for a moment before rerunning
                             st.rerun()
                     except Exception as e:
                         st.error(f"Error uninstalling plugin: {e}", icon="❌")
@@ -87,6 +87,8 @@ def list_plugins():
                         st.toast("Installation successful!", icon="✅")
                     except Exception as e:
                         st.toast(f"Error installing plugin: {e}", icon="❌")
+
+                    st.rerun()
     except Exception as e:
         st.error(f"Error fetching plugins: {e}")
 
@@ -141,9 +143,13 @@ def view_plugin_details(plugin_id: str):
             if st.button("Uninstall Plugin", type="primary"):
                 try:
                     result = client.plugins.delete_plugin(plugin_id)
-                    st.toast(f"Plugin {result.deleted} uninstalled successfully!", icon="✅")
+                    st.session_state["toast"] = {
+                        "message": f"Plugin {result.deleted} uninstalled successfully!", "icon": "✅"
+                    }
                 except Exception as e:
-                    st.toast(f"Error uninstalling plugin: {e}", icon="❌")
+                    st.session_state["toast"] = {"message": f"Error uninstalling plugin: {e}", "icon": "❌"}
+
+                st.rerun()
 
         with col2:
             if st.button("Back to list"):
@@ -185,7 +191,8 @@ def manage_plugin(plugin_id: str):
                     )
 
                     st.write(
-                        "**Note:** Make sure to keep the JSON format valid. You can use online JSON validators if needed.")
+                        "**Note:** Make sure to keep the JSON format valid. You can use online JSON validators if needed."
+                    )
                     st.divider()
 
                     submitted = st.form_submit_button("Save Changes")
@@ -193,31 +200,39 @@ def manage_plugin(plugin_id: str):
                         try:
                             settings_dict = json.loads(edited_settings)
                             client.plugins.put_plugin_settings(plugin_id, agent_id, settings_dict)
-                            st.toast(f"Plugin {plugin_id} settings updated successfully!", icon="✅")
+                            st.session_state["toast"] = {
+                                "message": f"Plugin {plugin_id} settings updated successfully!", "icon": "✅"
+                            }
                         except json.JSONDecodeError:
-                            st.toast("Invalid JSON format", icon="❌")
+                            st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
                         except Exception as e:
-                            st.toast(f"Error updating plugin settings: {e}", icon="❌")
+                            st.session_state["toast"] = {"message": f"Error updating plugin settings: {e}", "icon": "❌"}
 
-                    time.sleep(3)  # Wait for a moment before rerunning
-                    st.rerun()
+                        st.rerun()
             except Exception as e:
                 st.error(f"Error fetching plugin settings: {e}")
+        else:
+            st.warning("""This plugin is not currently active for the selected agent.
+You have to activate the plugin before managing its settings.""")
 
-        # in any case, display a button to toggle the plugin
         st.divider()
 
         col1, col2 = st.columns(2)
+        # in any case, display a button to toggle / untoggle the plugin
         with col1:
-            if st.button("Toggle Plugin", type="primary"):
+            if st.button(f"{'Untoggle' if is_plugin_installed else 'Toggle'} Plugin", type="primary"):
                 try:
-                    result = client.plugins.put_toggle_plugin(plugin_id, agent_id)
-                    st.toast(f"Plugin {plugin_id} toggled successfully!", icon="✅")
-                    st.json(result.model_dump())
+                    client.plugins.put_toggle_plugin(plugin_id, agent_id)
+                    st.session_state["toast"] = {
+                        "message": f"Plugin {plugin_id} {'untoggled' if is_plugin_installed else 'toggled'} successfully!",
+                        "icon": "✅",
+                    }
                 except Exception as e:
-                    st.toast(f"Error toggling plugin: {e}", icon="❌")
+                    st.session_state["toast"] = {
+                        "message": f"Error {'untoggling' if is_plugin_installed else 'toggling'} plugin: {e}",
+                        "icon": "❌"
+                    }
 
-                time.sleep(3)  # Wait for a moment before rerunning
                 st.rerun()
 
         with col2:

@@ -1,5 +1,4 @@
 import json
-import time
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -66,13 +65,14 @@ def edit_chunker(agent_id: str, chunker_name: str, is_selected: bool):
                         agent_id=agent_id,
                         values=settings_dict
                     )
-                    st.toast(f"Chunker {chunker_name} updated successfully!", icon="✅")
+                    st.session_state["toast"] = {
+                        "message": f"Chunker {chunker_name} updated successfully!", "icon": "✅"
+                    }
                 except json.JSONDecodeError:
-                    st.toast("Invalid JSON format", icon="❌")
+                    st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
                 except Exception as e:
-                    st.toast(f"Error updating chunker: {e}", icon="❌")
+                    st.session_state["toast"] = {"message": f"Error updating chunker: {e}", "icon": "❌"}
 
-                time.sleep(3)  # Wait for a moment before rerunning
                 st.rerun()
     except Exception as e:
         st.error(f"Error fetching chunker settings: {e}")

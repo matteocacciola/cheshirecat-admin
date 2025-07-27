@@ -44,7 +44,7 @@ def memory_collections(agent_id: str):
                         if result.deleted[collection]:
                             st.toast(f"Collection {collection} destroyed successfully!", icon="✅")
                             st.session_state.pop("collection_to_delete", None)
-                            time.sleep(3)  # Wait for a moment before rerunning
+                            time.sleep(1)  # Wait for a moment before rerunning
                             st.rerun()
                         else:
                             st.toast(f"Failed to completely destroy collection {collection}", icon="❌")
@@ -53,7 +53,6 @@ def memory_collections(agent_id: str):
             with col2:
                 if st.button("Cancel"):
                     st.session_state.pop("collection_to_delete", None)
-                    time.sleep(3)  # Wait for a moment before rerunning
                     st.rerun()
     except Exception as e:
         st.error(f"Error fetching memory collections: {e}")
@@ -99,7 +98,7 @@ def view_conversation_history(agent_id: str, user_id: str):
                         if result.deleted:
                             st.toast(f"Conversation history deleted successfully!", icon="✅")
                             st.session_state.pop("history_to_delete", None)
-                            time.sleep(3)  # Wait for a moment before rerunning
+                            time.sleep(1)  # Wait for a moment before rerunning
                             st.rerun()
                         else:
                             st.toast(f"Failed to delete conversation history", icon="❌")
@@ -108,7 +107,6 @@ def view_conversation_history(agent_id: str, user_id: str):
             with col2:
                 if st.button("Cancel"):
                     st.session_state.pop("history_to_delete", None)
-                    time.sleep(3)  # Wait for a moment before rerunning
                     st.rerun()
     except Exception as e:
         st.error(f"Error fetching conversation history: {e}")

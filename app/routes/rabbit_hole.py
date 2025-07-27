@@ -226,7 +226,7 @@ def list_files(agent_id: str):
                             )
                             st.toast(f"File {file.name} deleted successfully!", icon="✅")
                             st.session_state.pop("file_to_delete", None)
-                            time.sleep(3)  # Wait for a moment before rerunning
+                            time.sleep(1)  # Wait for a moment before rerunning
                             st.rerun()
                     except Exception as e:
                         st.error(f"Error deleting admin: {e}", icon="❌")

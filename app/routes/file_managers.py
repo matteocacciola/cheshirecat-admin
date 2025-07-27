@@ -1,13 +1,14 @@
 import json
-import time
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.constants import CLIENT_CONFIGURATION
-from app.utils import get_factory_settings, build_agents_select
+from app.utils import get_factory_settings, build_agents_select, run_toast
 
 
 def list_file_managers(agent_id: str):
+    run_toast()
+
     client = CheshireCatClient(CLIENT_CONFIGURATION)
     st.header("File Managers")
 
@@ -66,13 +67,14 @@ def edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool):
                         agent_id=agent_id,
                         values=settings_dict
                     )
-                    st.toast(f"File manager {file_manager_name} updated successfully!", icon="✅")
+                    st.session_state["toast"] = {
+                        "message": f"File manager {file_manager_name} updated successfully!", "icon": "✅"
+                    }
                 except json.JSONDecodeError:
-                    st.toast("Invalid JSON format", icon="❌")
+                    st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
                 except Exception as e:
-                    st.toast(f"Error updating file manager: {e}", icon="❌")
+                    st.session_state["toast"] = {"message": f"Error updating file manager: {e}", "icon": "❌"}
 
-                time.sleep(3)  # Wait for a moment before rerunning
                 st.rerun()
     except Exception as e:
         st.error(f"Error fetching file manager settings: {e}")
