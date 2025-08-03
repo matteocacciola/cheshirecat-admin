@@ -10,7 +10,7 @@ help:  ## Show help
 install: ## Install the Python libraries in a virtual environment
 	@$(PYTHON) -m pip install --no-cache-dir -r requirements.txt
 
-compile: ## Compile the requirements.txt file to requirements.lock
+compile: ## Compile the pyproject.toml file to requirements.txt
 	@pip-compile --output-file=requirements.txt --strip-extras pyproject.toml
 
 run:  ## Run the application client

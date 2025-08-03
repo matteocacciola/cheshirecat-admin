@@ -1,3 +1,5 @@
+import os
+import tempfile
 import json
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
@@ -271,15 +273,25 @@ def install_plugin_from_file():
         submitted = st.form_submit_button("Install Plugin")
         if submitted and uploaded_file is not None:
             spinner_container = show_overlay_spinner("Installing plugin from file...")
-            try:
-                # Note: The SDK would need to handle file uploads
-                result = client.admins.post_install_plugin_from_zip(path_zip=uploaded_file.name)
-                st.toast(f"Plugin {uploaded_file.name} is being installed!", icon="✅")
-                st.json(result.model_dump())
-            except Exception as e:
-                st.toast(f"Error installing plugin: {e}", icon="❌")
-            finally:
-                spinner_container.empty()
+
+            # Create a temporary directory
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                try:
+                    # Create the temporary file path with the original filename
+                    tmp_file_path = os.path.join(tmp_dir, uploaded_file.name)
+
+                    # Write the uploaded content to the temporary file
+                    with open(tmp_file_path, "wb") as tmp_file:
+                        tmp_file.write(uploaded_file.getvalue())
+
+                    # Pass the temporary file path to the SDK method
+                    result = client.admins.post_install_plugin_from_zip(path_zip=tmp_file_path)
+                    st.toast(f"Plugin {uploaded_file.name} is being installed!", icon="✅")
+                    st.json(result.model_dump())
+                except Exception as e:
+                    st.toast(f"Error installing plugin: {e}", icon="❌")
+                finally:
+                    spinner_container.empty()
         elif submitted:
             st.toast("Please select a file to upload", icon="⚠️")
 

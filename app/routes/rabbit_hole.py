@@ -14,11 +14,6 @@ def upload_files(agent_id: str):
     def add_file_pair():
         st.session_state.file_metadata_pairs.append({"file": None, "metadata": "{}"})
 
-    def remove_file_pair(index):
-        st.session_state.file_metadata_pairs.pop(index)
-        if not st.session_state.file_metadata_pairs:
-            add_file_pair()
-
     client = CheshireCatClient(CLIENT_CONFIGURATION)
     st.header("Upload Files")
 
