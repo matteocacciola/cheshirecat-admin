@@ -18,6 +18,8 @@ def list_plugins():
     search_query = st.text_input("Search plugins", "")
 
     try:
+        core_plugins_ids = client.custom.get_custom("/admins/core_plugins", "system")
+
         plugins = client.admins.get_available_plugins(plugin_name=search_query)
         if not plugins:
             st.info("No plugins found matching your search")
@@ -34,7 +36,7 @@ def list_plugins():
                 with st.expander(f"Plugin: {installed_plugin.name} (ID: {installed_plugin.id})", icon="🔌"):
                     st.json(installed_plugin.model_dump())
 
-            if installed_plugin.id != "core_plugin":
+            if installed_plugin.id not in core_plugins_ids:
                 with col2:
                     if st.button("View Details", key=f"view_{installed_plugin.id}"):
                         view_plugin_details(installed_plugin.id)
