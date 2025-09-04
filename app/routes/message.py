@@ -1,3 +1,5 @@
+import os
+
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 from cheshirecat_python_sdk.models.dtos import Message
@@ -19,6 +21,8 @@ def chat(container):
         if "user_id" in st.session_state:
             user_id = st.session_state.user_id
             st.session_state.messages = st.session_state.get("messages", [])
+            if intro_message := os.getenv("CHESHIRE_CAT_INTRO_MESSAGE"):
+                st.session_state.messages.append(intro_message)
 
             client = CheshireCatClient(CLIENT_CONFIGURATION)
 
