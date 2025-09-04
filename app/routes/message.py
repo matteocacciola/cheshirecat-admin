@@ -21,8 +21,11 @@ def chat(container):
         if "user_id" in st.session_state:
             user_id = st.session_state.user_id
             st.session_state.messages = st.session_state.get("messages", [])
-            if intro_message := os.getenv("CHESHIRE_CAT_INTRO_MESSAGE"):
-                st.session_state.messages.append(intro_message)
+            if not st.session_state.messages and (intro_message := os.getenv("CHESHIRE_CAT_INTRO_MESSAGE")):
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": intro_message,
+                })
 
             client = CheshireCatClient(CLIENT_CONFIGURATION)
 
@@ -35,12 +38,12 @@ def chat(container):
 
                     st.session_state.messages.append({
                         "role": "user",
-                        "content": user_message
+                        "content": user_message,
                     })
 
                     st.session_state.messages.append({
                         "role": "assistant",
-                        "content": response.content
+                        "content": response.content,
                     })
                 except Exception as e:
                     st.toast(f"Error sending message: {e}", icon="❌")
