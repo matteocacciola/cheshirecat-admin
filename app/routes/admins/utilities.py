@@ -2,12 +2,11 @@ import time
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
-from app.constants import CLIENT_CONFIGURATION
-from app.utils import show_overlay_spinner
+from app.utils import show_overlay_spinner, build_client_configuration
 
 
 def factory_reset():
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("Factory Reset")
 
     st.warning("""
@@ -17,28 +16,30 @@ def factory_reset():
     This action cannot be undone!
     """)
 
-    if st.button("Perform Factory Reset", type="primary"):
-        spinner_container = show_overlay_spinner("Performing factory reset...")
-        try:
-            result = client.admins.post_factory_reset()
+    if not st.button("Perform Factory Reset", type="primary"):
+        return
 
-            if result.deleted_settings and result.deleted_plugin_folders and result.deleted_memories:
-                st.toast("Factory reset completed successfully!", icon="✅")
-            else:
-                st.toast("Factory reset partially failed", icon="❌")
-            st.json({
-                "Settings deleted": result.deleted_settings,
-                "Plugin folders deleted": result.deleted_plugin_folders,
-                "Memories deleted": result.deleted_memories
-            })
-        except Exception as e:
-            st.toast(f"Error performing factory reset: {e}", icon="❌")
-        finally:
-            spinner_container.empty()
+    spinner_container = show_overlay_spinner("Performing factory reset...")
+    try:
+        result = client.admins.post_factory_reset()
+
+        if result.deleted_settings and result.deleted_plugin_folders and result.deleted_memories:
+            st.toast("Factory reset completed successfully!", icon="✅")
+        else:
+            st.toast("Factory reset partially failed", icon="❌")
+        st.json({
+            "Settings deleted": result.deleted_settings,
+            "Plugin folders deleted": result.deleted_plugin_folders,
+            "Memories deleted": result.deleted_memories
+        })
+    except Exception as e:
+        st.toast(f"Error performing factory reset: {e}", icon="❌")
+    finally:
+        spinner_container.empty()
 
 
 def list_agents():
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("Agent Management")
 
     try:
@@ -117,30 +118,33 @@ def list_agents():
 
 
 def create_agent():
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("Create New Agent")
 
     with st.form("create_agent_form", clear_on_submit=True):
         agent_id = st.text_input("Agent ID", help="Unique identifier for the new agent")
 
-        if st.form_submit_button("Create Agent"):
-            if not agent_id:
-                st.error("Agent ID is required")
+        if not st.form_submit_button("Create Agent"):
+            return
+
+        if not agent_id:
+            st.error("Agent ID is required")
+            return
+
+        try:
+            spinner_container = show_overlay_spinner(f"Creating agent {agent_id}...")
+            result = client.admins.post_agent_create(agent_id=agent_id)
+            if result.created:
+                st.toast(f"Agent {agent_id} created successfully!", icon="✅")
             else:
-                try:
-                    spinner_container = show_overlay_spinner(f"Creating agent {agent_id}...")
-                    result = client.admins.post_agent_create(agent_id=agent_id)
-                    if result.created:
-                        st.toast(f"Agent {agent_id} created successfully!", icon="✅")
-                    else:
-                        st.toast(f"Failed to create agent {agent_id}", icon="❌")
-                except Exception as e:
-                    st.toast(f"Error creating agent: {e}", icon="❌")
-                finally:
-                    spinner_container.empty()
+                st.toast(f"Failed to create agent {agent_id}", icon="❌")
+        except Exception as e:
+            st.toast(f"Error creating agent: {e}", icon="❌")
+        finally:
+            spinner_container.empty()
 
 
-def admin_system_management(container):
+def admin_system_management():
     st.title("System Management Dashboard")
 
     # Navigation
@@ -154,7 +158,9 @@ def admin_system_management(container):
 
     if menu_options[choice] == "agent_management":
         list_agents()
-    elif menu_options[choice] == "create_agent":
+        return
+    if menu_options[choice] == "create_agent":
         create_agent()
-    elif menu_options[choice] == "factory_reset":
+        return
+    if menu_options[choice] == "factory_reset":
         factory_reset()

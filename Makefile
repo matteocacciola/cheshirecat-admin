@@ -13,5 +13,8 @@ install: ## Install the Python libraries in a virtual environment
 compile: ## Compile the pyproject.toml file to requirements.txt
 	@pip-compile --output-file=requirements.txt --strip-extras pyproject.toml
 
+update: ## Update and compile requirements for the local virtual environment.
+	@pip-compile --upgrade --output-file requirements.txt pyproject.toml
+
 run:  ## Run the application client
 	@$(PYTHON) -m streamlit run app/main.py

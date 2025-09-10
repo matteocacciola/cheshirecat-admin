@@ -4,14 +4,19 @@ import json
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
-from app.constants import CLIENT_CONFIGURATION
-from app.utils import get_factory_settings, build_agents_select, run_toast, show_overlay_spinner
+from app.utils import (
+    get_factory_settings,
+    build_agents_select,
+    run_toast,
+    show_overlay_spinner,
+    build_client_configuration,
+)
 
 
 def list_plugins():
     run_toast()
 
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("Available Plugins")
 
     # Search functionality
@@ -103,7 +108,7 @@ def list_plugins():
 
 @st.dialog(title="Plugin Details", width="large")
 def view_plugin_details(plugin_id: str):
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     try:
         plugin_details = client.admins.get_plugin_details(plugin_id).data
 
@@ -173,96 +178,98 @@ def view_plugin_details(plugin_id: str):
 @st.dialog(title="Manage Plugin", width="large")
 def manage_plugin(plugin_id: str):
     build_agents_select()
-    if "agent_id" in st.session_state:
-        agent_id = st.session_state.agent_id
-        client = CheshireCatClient(CLIENT_CONFIGURATION)
+    if "agent_id" not in st.session_state:
+        return
 
-        # fetch the plugin
+    agent_id = st.session_state.agent_id
+    client = CheshireCatClient(build_client_configuration())
+
+    # fetch the plugin
+    try:
+        plugins_installed = client.plugins.get_available_plugins(agent_id, plugin_id).installed
+        is_plugin_installed = any(plugin.id == plugin_id for plugin in plugins_installed)
+    except Exception as e:
+        st.error(f"Error fetching plugin: {e}")
+        return
+
+    # if the plugin is installed, fetch its settings and display them in a form to be edited
+    st.header(f"Manage Plugin: {plugin_id}")
+    if is_plugin_installed:
         try:
-            plugins_installed = client.plugins.get_available_plugins(agent_id, plugin_id).installed
-            is_plugin_installed = any(plugin.id == plugin_id for plugin in plugins_installed)
+            plugin_settings = client.plugins.get_plugin_settings(plugin_id, agent_id)
+
+            st.subheader("Plugin Settings")
+            with st.form("plugin_settings_form", clear_on_submit=True):
+                # Display current settings as editable JSON
+                edited_settings = st.text_area(
+                    "Settings (JSON format)",
+                    value=json.dumps(get_factory_settings(plugin_settings, is_selected=True), indent=4),
+                    height=300
+                )
+
+                st.write(
+                    "**Note:** Make sure to keep the JSON format valid. You can use online JSON validators if needed."
+                )
+                st.divider()
+
+                submitted = st.form_submit_button("Save Changes")
+                if submitted:
+                    spinner_container = show_overlay_spinner("Saving plugin settings...")
+                    try:
+                        settings_dict = json.loads(edited_settings)
+                        client.plugins.put_plugin_settings(plugin_id, agent_id, settings_dict)
+                        st.session_state["toast"] = {
+                            "message": f"Plugin {plugin_id} settings updated successfully!", "icon": "✅"
+                        }
+                    except json.JSONDecodeError:
+                        st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
+                    except Exception as e:
+                        st.session_state["toast"] = {"message": f"Error updating plugin settings: {e}", "icon": "❌"}
+                    finally:
+                        spinner_container.empty()
+                    st.rerun()
         except Exception as e:
-            st.error(f"Error fetching plugin: {e}")
-            return
-
-        # if the plugin is installed, fetch its settings and display them in a form to be edited
-        st.header(f"Manage Plugin: {plugin_id}")
-        if is_plugin_installed:
-            try:
-                plugin_settings = client.plugins.get_plugin_settings(plugin_id, agent_id)
-
-                st.subheader("Plugin Settings")
-                with st.form("plugin_settings_form", clear_on_submit=True):
-                    # Display current settings as editable JSON
-                    edited_settings = st.text_area(
-                        "Settings (JSON format)",
-                        value=json.dumps(get_factory_settings(plugin_settings, is_selected=True), indent=4),
-                        height=300
-                    )
-
-                    st.write(
-                        "**Note:** Make sure to keep the JSON format valid. You can use online JSON validators if needed."
-                    )
-                    st.divider()
-
-                    submitted = st.form_submit_button("Save Changes")
-                    if submitted:
-                        spinner_container = show_overlay_spinner("Saving plugin settings...")
-                        try:
-                            settings_dict = json.loads(edited_settings)
-                            client.plugins.put_plugin_settings(plugin_id, agent_id, settings_dict)
-                            st.session_state["toast"] = {
-                                "message": f"Plugin {plugin_id} settings updated successfully!", "icon": "✅"
-                            }
-                        except json.JSONDecodeError:
-                            st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
-                        except Exception as e:
-                            st.session_state["toast"] = {"message": f"Error updating plugin settings: {e}", "icon": "❌"}
-                        finally:
-                            spinner_container.empty()
-                        st.rerun()
-            except Exception as e:
-                st.error(f"Error fetching plugin settings: {e}")
-        else:
-            st.warning("""This plugin is not currently active for the selected agent.
+            st.error(f"Error fetching plugin settings: {e}")
+    else:
+        st.warning("""This plugin is not currently active for the selected agent.
 You have to activate the plugin before managing its settings.""")
 
+        try:
+            plugin_settings = client.admins.get_plugin_settings(plugin_id)
+            with st.expander("Plugin's default configuration", icon="⚙️"):
+                st.json(get_factory_settings(plugin_settings, is_selected=True))
+        except Exception as e:
+            st.error(f"Error fetching plugin settings: {e}")
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+    # in any case, display a button to toggle / untoggle the plugin
+    with col1:
+        if st.button(f"{'Untoggle' if is_plugin_installed else 'Toggle'} Plugin", type="primary"):
+            spinner_container = show_overlay_spinner(f"{'Untoggling' if is_plugin_installed else 'Toggling'} plugin...")
             try:
-                plugin_settings = client.admins.get_plugin_settings(plugin_id)
-                with st.expander("Plugin's default configuration", icon="⚙️"):
-                    st.json(get_factory_settings(plugin_settings, is_selected=True))
+                client.plugins.put_toggle_plugin(plugin_id, agent_id)
+                st.session_state["toast"] = {
+                    "message": f"Plugin {plugin_id} {'untoggled' if is_plugin_installed else 'toggled'} successfully!",
+                    "icon": "✅",
+                }
             except Exception as e:
-                st.error(f"Error fetching plugin settings: {e}")
+                st.session_state["toast"] = {
+                    "message": f"Error {'untoggling' if is_plugin_installed else 'toggling'} plugin: {e}",
+                    "icon": "❌"
+                }
+            finally:
+                spinner_container.empty()
+            st.rerun()
 
-        st.divider()
-
-        col1, col2 = st.columns(2)
-        # in any case, display a button to toggle / untoggle the plugin
-        with col1:
-            if st.button(f"{'Untoggle' if is_plugin_installed else 'Toggle'} Plugin", type="primary"):
-                spinner_container = show_overlay_spinner(f"{'Untoggling' if is_plugin_installed else 'Toggling'} plugin...")
-                try:
-                    client.plugins.put_toggle_plugin(plugin_id, agent_id)
-                    st.session_state["toast"] = {
-                        "message": f"Plugin {plugin_id} {'untoggled' if is_plugin_installed else 'toggled'} successfully!",
-                        "icon": "✅",
-                    }
-                except Exception as e:
-                    st.session_state["toast"] = {
-                        "message": f"Error {'untoggling' if is_plugin_installed else 'toggling'} plugin: {e}",
-                        "icon": "❌"
-                    }
-                finally:
-                    spinner_container.empty()
-                st.rerun()
-
-        with col2:
-            if st.button("Back to list"):
-                st.rerun()
+    with col2:
+        if st.button("Back to list"):
+            st.rerun()
 
 
 def install_plugin_from_file():
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("Install Plugin from File")
 
     with st.form("upload_plugin_form", clear_on_submit=True):
@@ -299,7 +306,7 @@ def install_plugin_from_file():
 
 
 def view_plugin_settings():
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("All Plugin Settings")
 
     try:
@@ -311,7 +318,7 @@ def view_plugin_settings():
         st.error(f"Error fetching plugin settings: {e}")
 
 
-def admin_plugins_management(container):
+def admin_plugins_management():
     st.title("Plugins Management Dashboard")
 
     # Navigation
@@ -324,5 +331,6 @@ def admin_plugins_management(container):
 
     if menu_options[choice] == "browse_plugins":
         list_plugins()
-    elif menu_options[choice] == "install_from_file":
+        return
+    if menu_options[choice] == "install_from_file":
         install_plugin_from_file()

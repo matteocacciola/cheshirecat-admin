@@ -2,19 +2,18 @@ import os
 import tempfile
 import time
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient, Collection
+from cheshirecat_python_sdk import CheshireCatClient
 import json
 import base64
 
-from app.constants import CLIENT_CONFIGURATION
-from app.utils import build_agents_select, show_overlay_spinner
+from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration
 
 
 def upload_files(agent_id: str):
     def add_file_pair():
         st.session_state.file_metadata_pairs.append({"file": None, "metadata": "{}"})
 
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("Upload Files")
 
     allowed_file_types = client.rabbit_hole.get_allowed_mime_types(agent_id)
@@ -59,65 +58,69 @@ def upload_files(agent_id: str):
                         st.session_state.remove_index = i
                         st.rerun()
 
-        if st.form_submit_button("📤 Upload Files"):
-            file_paths = []
-            metadata_dict = {}
-            has_errors = False
-            temp_files = []  # Keep track of temporary files for cleanup
+        if not st.form_submit_button("📤 Upload Files"):
+            return
 
-            for i, pair in enumerate(st.session_state.file_metadata_pairs):
-                if not pair["file"]:
-                    st.error(f"Please select a file for File {i + 1}")
-                    has_errors = True
-                    continue
+        file_paths = []
+        metadata_dict = {}
+        has_errors = False
+        temp_files = []  # Keep track of temporary files for cleanup
 
+        for i, pair in enumerate(st.session_state.file_metadata_pairs):
+            if not pair["file"]:
+                st.error(f"Please select a file for File {i + 1}")
+                has_errors = True
+                continue
+
+            try:
+                # Validate JSON metadata
+                metadata = json.loads(pair["metadata"])
+
+                # Save uploaded file to temporary location
+                uploaded_file = pair["file"]
+                temp_file = tempfile.NamedTemporaryFile(
+                    delete=False,
+                    suffix=f"_{uploaded_file.name}"
+                )
+                temp_file.write(uploaded_file.getbuffer())
+                temp_file.close()
+
+                # Add to our lists
+                file_paths.append(temp_file.name)
+                temp_files.append(temp_file.name)  # For cleanup
+                metadata_dict[uploaded_file.name] = metadata
+            except json.JSONDecodeError:
+                st.error(f"Invalid JSON format in metadata for File {i + 1}")
+                has_errors = True
+
+        if has_errors or not file_paths:
+            return
+
+        try:
+            spinner_container = show_overlay_spinner(f"Loading files to RAG...")
+
+            client.rabbit_hole.post_files(
+                file_paths=file_paths,
+                agent_id=agent_id,
+                metadata=metadata_dict,
+            )
+            st.toast(f"Successfully uploaded {len(file_paths)} files!", icon="✅")
+            # Clear the files after successful upload
+            st.session_state.file_metadata_pairs = [{"file": None, "metadata": "{}"}]
+        except Exception as e:
+            st.toast(f"Error uploading files: {e}", icon="❌")
+        finally:
+            spinner_container.empty()  # Remove the spinner
+            # Clean up temporary files
+            for temp_file_path in temp_files:
                 try:
-                    # Validate JSON metadata
-                    metadata = json.loads(pair["metadata"])
-
-                    # Save uploaded file to temporary location
-                    uploaded_file = pair["file"]
-                    temp_file = tempfile.NamedTemporaryFile(
-                        delete=False,
-                        suffix=f"_{uploaded_file.name}"
-                    )
-                    temp_file.write(uploaded_file.getbuffer())
-                    temp_file.close()
-
-                    # Add to our lists
-                    file_paths.append(temp_file.name)
-                    temp_files.append(temp_file.name)  # For cleanup
-                    metadata_dict[uploaded_file.name] = metadata
-                except json.JSONDecodeError:
-                    st.error(f"Invalid JSON format in metadata for File {i + 1}")
-                    has_errors = True
-
-            if not has_errors and file_paths:
-                try:
-                    spinner_container = show_overlay_spinner(f"Loading files to RAG...")
-
-                    client.rabbit_hole.post_files(
-                        file_paths=file_paths,
-                        agent_id=agent_id,
-                        metadata=metadata_dict,
-                    )
-                    st.toast(f"Successfully uploaded {len(file_paths)} files!", icon="✅")
-                    # Clear the files after successful upload
-                    st.session_state.file_metadata_pairs = [{"file": None, "metadata": "{}"}]
-                except Exception as e:
-                    st.toast(f"Error uploading files: {e}", icon="❌")
-                finally:
-                    spinner_container.empty()  # Remove the spinner
-                    # Clean up temporary files
-                    for temp_file_path in temp_files:
-                        try:
-                            os.unlink(temp_file_path)
-                        except OSError:
-                            pass  # Ignore cleanup errors
+                    os.unlink(temp_file_path)
+                except OSError:
+                    pass  # Ignore cleanup errors
 
 
 def upload_url(agent_id: str):
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("Upload from URL")
 
     with st.form("upload_url_form", clear_on_submit=True):
@@ -132,27 +135,29 @@ def upload_url(agent_id: str):
             help="Enter metadata to be stored with the content"
         )
 
-        if st.form_submit_button("Upload URL"):
-            try:
-                spinner_container = show_overlay_spinner(f"Loading URL to RAG...")
+        if not st.form_submit_button("Upload URL"):
+            return
 
-                metadata_dict = json.loads(metadata)
-                client.rabbit_hole.post_web(
-                    web_url=url,
-                    agent_id=agent_id,
-                    metadata=metadata_dict
-                )
-                st.toast(f"URL {url} is being ingested!", icon="✅")
-            except json.JSONDecodeError:
-                st.toast("Invalid JSON format in metadata", icon="❌")
-            except Exception as e:
-                st.toast(f"Error uploading URL: {e}", icon="❌")
-            finally:
-                spinner_container.empty()
+        try:
+            spinner_container = show_overlay_spinner(f"Loading URL to RAG...")
+
+            metadata_dict = json.loads(metadata)
+            client.rabbit_hole.post_web(
+                web_url=url,
+                agent_id=agent_id,
+                metadata=metadata_dict
+            )
+            st.toast(f"URL {url} is being ingested!", icon="✅")
+        except json.JSONDecodeError:
+            st.toast("Invalid JSON format in metadata", icon="❌")
+        except Exception as e:
+            st.toast(f"Error uploading URL: {e}", icon="❌")
+        finally:
+            spinner_container.empty()
 
 
 def list_files(agent_id: str):
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("Uploaded Files")
 
     try:
@@ -168,7 +173,7 @@ def list_files(agent_id: str):
             with col1:
                 chunks = client.memory.get_memory_points(
                     agent_id=agent_id,
-                    collection=Collection.DECLARATIVE,
+                    collection="declarative",
                     metadata={"source": file.name},
                 )
 
@@ -210,60 +215,67 @@ def list_files(agent_id: str):
                     st.session_state["file_to_delete"] = file
 
         # Delete confirmation
-        if "file_to_delete" in st.session_state:
-            file = st.session_state["file_to_delete"]
-            st.warning(f"⚠️ Are you sure you want to permanently delete file `{file.name}`?")
+        if "file_to_delete" not in st.session_state:
+            return
 
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("Yes, Delete File", type="primary"):
-                    try:
-                        spinner_container = show_overlay_spinner(f"Deleting file {file.name}...")
+        file = st.session_state["file_to_delete"]
+        st.warning(f"⚠️ Are you sure you want to permanently delete file `{file.name}`?")
 
-                        client.memory.delete_memory_points_by_metadata(
-                            collection=Collection.DECLARATIVE,
-                            agent_id=agent_id,
-                            metadata={"source": file.name}
-                        )
-                        st.toast(f"File {file.name} deleted successfully!", icon="✅")
-                        st.session_state.pop("file_to_delete", None)
-                        time.sleep(1)  # Wait for a moment before rerunning
-                    except Exception as e:
-                        st.error(f"Error deleting admin: {e}", icon="❌")
-                    finally:
-                        spinner_container.empty()
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Yes, Delete File", type="primary"):
+                try:
+                    spinner_container = show_overlay_spinner(f"Deleting file {file.name}...")
 
-                    st.rerun()
-            with col2:
-                if st.button("Cancel"):
+                    client.memory.delete_memory_points_by_metadata(
+                        collection="declarative",
+                        agent_id=agent_id,
+                        metadata={"source": file.name}
+                    )
+                    st.toast(f"File {file.name} deleted successfully!", icon="✅")
                     st.session_state.pop("file_to_delete", None)
-                    st.rerun()
+                    time.sleep(1)  # Wait for a moment before rerunning
+                except Exception as e:
+                    st.error(f"Error deleting admin: {e}", icon="❌")
+                finally:
+                    spinner_container.empty()
+
+                st.rerun()
+        with col2:
+            if st.button("Cancel"):
+                st.session_state.pop("file_to_delete", None)
+                st.rerun()
     except Exception as e:
         st.toast(f"Error fetching files: {e}", icon="❌")
 
 
-def rabbit_hole_management(container):
+def rabbit_hole_management():
     st.title("Knowledge Base Management")
 
     st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
     please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the CheshireCat.""")
 
-    with container:
-        build_agents_select()
-    if "agent_id" in st.session_state:
-        agent_id = st.session_state.agent_id
+    build_agents_select()
+    if "agent_id" not in st.session_state:
+        return
 
-        menu_options = {
-            "(Select a menu)": None,
-            "Upload Files": "upload_files",
-            "Upload from URL": "upload_url",
-            "View Uploaded Files": "list_files",
-        }
-        choice = st.selectbox("Menu", menu_options)
+    agent_id = st.session_state.agent_id
 
-        if menu_options[choice] == "upload_files":
-            upload_files(agent_id)
-        elif menu_options[choice] == "upload_url":
-            upload_url(agent_id)
-        elif menu_options[choice] == "list_files":
-            list_files(agent_id)
+    menu_options = {
+        "(Select a menu)": None,
+        "Upload Files": "upload_files",
+        "Upload from URL": "upload_url",
+        "View Uploaded Files": "list_files",
+    }
+    choice = st.selectbox("Menu", menu_options)
+
+    if menu_options[choice] == "upload_files":
+        upload_files(agent_id)
+        return
+
+    if menu_options[choice] == "upload_url":
+        upload_url(agent_id)
+        return
+
+    if menu_options[choice] == "list_files":
+        list_files(agent_id)

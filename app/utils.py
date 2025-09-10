@@ -1,10 +1,10 @@
 from typing import Dict, Any
 from slugify import slugify
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from cheshirecat_python_sdk import CheshireCatClient, Configuration
 from cheshirecat_python_sdk.models.api.factories import FactoryObjectSettingOutput
 
-from app.constants import CLIENT_CONFIGURATION
+from app.env import get_env, get_env_bool
 
 
 def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool) -> Dict[str, Any]:
@@ -24,7 +24,7 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
 
 
 def build_agents_select():
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     agents = client.admins.get_agents()
 
     # Sidebar navigation
@@ -33,12 +33,13 @@ def build_agents_select():
     if menu_options[choice] is None:
         st.info("Please select an agent to manage.")
         st.session_state.pop("agent_id", None)
-    else:
-        st.session_state["agent_id"] = choice
+        return
+
+    st.session_state["agent_id"] = choice
 
 
 def build_users_select(agent_id: str):
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     users = client.users.get_users(agent_id)
 
     # Navigation
@@ -47,8 +48,9 @@ def build_users_select(agent_id: str):
     if menu_options[choice] is None:
         st.info("Please select an user to manage.")
         st.session_state.pop("user_id", None)
-    else:
-        st.session_state["user_id"] = menu_options[choice]
+        return
+
+    st.session_state["user_id"] = menu_options[choice]
 
 
 def run_toast():
@@ -99,3 +101,12 @@ def show_overlay_spinner(message="Processing..."):
         </div>
         """, unsafe_allow_html=True)
     return spinner_container
+
+
+def build_client_configuration():
+    return Configuration(
+        host=get_env("CHESHIRE_CAT_API_HOST").replace("https://", "").replace("http://", ""),
+        port=int(get_env("CHESHIRE_CAT_API_PORT")),
+        auth_key=st.session_state.get("token"),
+        secure_connection=get_env_bool("CHESHIRE_CAT_API_SECURE_CONNECTION"),
+    )

@@ -2,12 +2,11 @@ import time
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
-from app.constants import CLIENT_CONFIGURATION
-from app.utils import build_agents_select, show_overlay_spinner
+from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration
 
 
 def create_user(agent_id: str):
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
 
     st.header("Create New User")
     with st.form("create_user_form", clear_on_submit=True):
@@ -29,83 +28,89 @@ def create_user(agent_id: str):
                     permissions.append(perm)
             selected_permissions[res] = permissions
 
-        if st.form_submit_button("Create User"):
-            if not username or not password:
-                st.error("Username and password are required")
-            else:
-                try:
-                    spinner_container = show_overlay_spinner("Creating user...")
-                    result = client.users.post_user(agent_id, username, password, permissions if permissions else None)
-                    st.toast(f"Admin {result.username} created successfully!", icon="✅")
-                    st.json(result)
-                except Exception as e:
-                    st.toast(f"Error creating admin: {e}", icon="❌")
-                finally:
-                    spinner_container.empty()
+        if not st.form_submit_button("Create User"):
+            return
+
+        if not username or not password:
+            st.error("Username and password are required")
+            return
+
+        try:
+            spinner_container = show_overlay_spinner("Creating user...")
+            result = client.users.post_user(agent_id, username, password, permissions if permissions else None)
+            st.toast(f"Admin {result.username} created successfully!", icon="✅")
+            st.json(result)
+        except Exception as e:
+            st.toast(f"Error creating admin: {e}", icon="❌")
+        finally:
+            spinner_container.empty()
 
 
 def list_users(agent_id: str):
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("List All Users")
 
     try:
         users = client.users.get_users(agent_id)
-        if users:
-            st.write(f"Found {len(users)} users:")
-            for user in users:
-                col1, col2, col3, col4 = st.columns([0.7, 0.1, 0.1, 0.1])
-
-                with col1:
-                    with st.expander(f"User: {user.username} (ID: {user.id})", icon="👤"):
-                        st.json(user.model_dump())
-
-                with col2:
-                    # Action buttons
-                    if st.button("View", key=f"view_{user.id}"):
-                        get_user(agent_id, user.id)
-
-                with col3:
-                    if st.button("Update", key=f"update_{user.id}"):
-                        update_user(agent_id, user.id)
-
-                with col4:
-                    if (
-                            user.username != "user"
-                            and st.button("Delete", key=f"delete_{user.id}", type="primary", help="Permanently delete this item")
-                    ):
-                        st.session_state["user_to_delete"] = user
-
-            # Delete confirmation
-            if "user_to_delete" in st.session_state:
-                user = st.session_state["user_to_delete"]
-                st.warning(f"⚠️ Are you sure you want to permanently delete user `{user.id}`?")
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("Yes, Delete User", type="primary"):
-                        try:
-                            spinner_container = show_overlay_spinner(f"Deleting user {user.id}...")
-                            client.users.delete_user(agent_id, user.id)
-                            st.toast(f"Admin {user.id} deleted successfully!", icon="✅")
-                            st.session_state.pop("user_to_delete", None)
-                            time.sleep(1)  # Wait for a moment before rerunning
-                        except Exception as e:
-                            st.error(f"Error deleting user: {e}", icon="❌")
-                        finally:
-                            spinner_container.empty()
-                        st.rerun()
-                with col2:
-                    if st.button("Cancel"):
-                        st.session_state.pop("user_to_delete", None)
-                        st.rerun()
-        else:
+        if not users:
             st.info("No user found")
+            return
+
+        st.write(f"Found {len(users)} users:")
+        for user in users:
+            col1, col2, col3, col4 = st.columns([0.7, 0.1, 0.1, 0.1])
+
+            with col1:
+                with st.expander(f"User: {user.username} (ID: {user.id})", icon="👤"):
+                    st.json(user.model_dump())
+
+            with col2:
+                # Action buttons
+                if st.button("View", key=f"view_{user.id}"):
+                    get_user(agent_id, user.id)
+
+            with col3:
+                if st.button("Update", key=f"update_{user.id}"):
+                    update_user(agent_id, user.id)
+
+            with col4:
+                if (
+                        user.username != "user"
+                        and st.button("Delete", key=f"delete_{user.id}", type="primary", help="Permanently delete this item")
+                ):
+                    st.session_state["user_to_delete"] = user
+
+        # Delete confirmation
+        if "user_to_delete" not in st.session_state:
+            return
+
+        user = st.session_state["user_to_delete"]
+        st.warning(f"⚠️ Are you sure you want to permanently delete user `{user.id}`?")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Yes, Delete User", type="primary"):
+                try:
+                    spinner_container = show_overlay_spinner(f"Deleting user {user.id}...")
+                    client.users.delete_user(agent_id, user.id)
+                    st.toast(f"Admin {user.id} deleted successfully!", icon="✅")
+                    st.session_state.pop("user_to_delete", None)
+                    time.sleep(1)  # Wait for a moment before rerunning
+                except Exception as e:
+                    st.error(f"Error deleting user: {e}", icon="❌")
+                finally:
+                    spinner_container.empty()
+                st.rerun()
+        with col2:
+            if st.button("Cancel"):
+                st.session_state.pop("user_to_delete", None)
+                st.rerun()
     except Exception as e:
         st.error(f"Error fetching users: {e}")
 
 
 @st.dialog(title="User Details", width="large")
 def get_user(agent_id: str, user_id: str):
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header(f"User Details for ID: {user_id}")
 
     try:
@@ -117,7 +122,7 @@ def get_user(agent_id: str, user_id: str):
 
 @st.dialog(title="Update Details", width="large")
 def update_user(agent_id: str, user_id: str):
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header(f"Update User ID: {user_id}")
 
     try:
@@ -148,42 +153,49 @@ def update_user(agent_id: str, user_id: str):
 
         st.divider()
 
-        if st.form_submit_button("Update User"):
-            if not new_username:
-                st.error("Username cannot be empty")
-            try:
-                spinner_container = show_overlay_spinner(f"Updating user {user_id}...")
+        if not st.form_submit_button("Update User"):
+            return
 
-                result = client.users.put_user(
-                    agent_id=agent_id,
-                    user_id=user_id,
-                    username=new_username,
-                    password=new_password or None,
-                    permissions=selected_permissions or None,
-                )
-                st.toast(f"User {result.username} updated successfully!", icon="✅")
-                st.json(result)
-            except Exception as e:
-                st.toast(f"Error updating user `{user_id}`: {e}", icon="❌")
-            finally:
-                spinner_container.empty()
+        if not new_username:
+            st.error("Username cannot be empty")
+            return
+
+        try:
+            spinner_container = show_overlay_spinner(f"Updating user {user_id}...")
+
+            result = client.users.put_user(
+                agent_id=agent_id,
+                user_id=user_id,
+                username=new_username,
+                password=new_password or None,
+                permissions=selected_permissions or None,
+            )
+            st.toast(f"User {result.username} updated successfully!", icon="✅")
+            st.json(result)
+        except Exception as e:
+            st.toast(f"Error updating user `{user_id}`: {e}", icon="❌")
+        finally:
+            spinner_container.empty()
 
 
 # Streamlit UI
-def users_management(container):
+def users_management():
     st.title("User Management Dashboard")
 
-    with container:
-        build_agents_select()
-    if "agent_id" in st.session_state:
-        agent_id = st.session_state.agent_id
+    build_agents_select()
 
-        # Sidebar navigation
-        menu_options = ["List Users", "Create User"]
-        choice = st.selectbox("Menu", menu_options)
+    if "agent_id" not in st.session_state:
+        return
 
-        if choice == "List Users":
-            list_users(agent_id)
+    agent_id = st.session_state.agent_id
 
-        elif choice == "Create User":
-            create_user(agent_id)
+    # Sidebar navigation
+    menu_options = ["List Users", "Create User"]
+    choice = st.selectbox("Menu", menu_options)
+
+    if choice == "List Users":
+        list_users(agent_id)
+        return
+
+    if choice == "Create User":
+        create_user(agent_id)

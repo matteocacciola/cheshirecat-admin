@@ -2,12 +2,11 @@ import time
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
-from app.constants import CLIENT_CONFIGURATION
-from app.utils import build_agents_select, build_users_select, show_overlay_spinner
+from app.utils import build_agents_select, build_users_select, show_overlay_spinner, build_client_configuration
 
 
 def memory_collections(agent_id: str):
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("Memory Collections")
 
     try:
@@ -46,7 +45,6 @@ def memory_collections(agent_id: str):
                             st.toast(f"Collection {collection} destroyed successfully!", icon="✅")
                             st.session_state.pop("collection_to_delete", None)
                             time.sleep(1)  # Wait for a moment before rerunning
-
                         else:
                             st.toast(f"Failed to completely destroy collection {collection}", icon="❌")
                     except Exception as e:
@@ -64,7 +62,7 @@ def memory_collections(agent_id: str):
 
 
 def view_conversation_history(agent_id: str, user_id: str):
-    client = CheshireCatClient(CLIENT_CONFIGURATION)
+    client = CheshireCatClient(build_client_configuration())
     st.header("Conversation History")
 
     try:
@@ -107,7 +105,6 @@ def view_conversation_history(agent_id: str, user_id: str):
                             st.toast(f"Conversation history deleted successfully!", icon="✅")
                             st.session_state.pop("history_to_delete", None)
                             time.sleep(1)  # Wait for a moment before rerunning
-
                         else:
                             st.toast(f"Failed to delete conversation history", icon="❌")
                     except Exception as e:
@@ -125,29 +122,31 @@ def view_conversation_history(agent_id: str, user_id: str):
 
 
 # Streamlit UI
-def memory_management(container):
+def memory_management():
     st.title("Memory Management Dashboard")
 
-    with container:
-        build_agents_select()
+    build_agents_select()
+    if "agent_id" not in st.session_state:
+        return
 
-    if "agent_id" in st.session_state:
-        agent_id = st.session_state.agent_id
+    agent_id = st.session_state.agent_id
 
-        # Navigation
-        menu_options = {
-            "(Select a menu)": None,
-            "List Collections": "list_collections",
-            "View Conversation History": "view_conversation_history",
-        }
-        choice = st.selectbox("Menu", menu_options)
+    # Navigation
+    menu_options = {
+        "(Select a menu)": None,
+        "List Collections": "list_collections",
+        "View Conversation History": "view_conversation_history",
+    }
+    choice = st.selectbox("Menu", menu_options)
 
-        if menu_options[choice] == "list_collections":
-            memory_collections(agent_id)
+    if menu_options[choice] == "list_collections":
+        memory_collections(agent_id)
+        return
 
-        elif menu_options[choice] == "view_conversation_history":
-            build_users_select(agent_id)
+    if menu_options[choice] == "view_conversation_history":
+        build_users_select(agent_id)
+        if "user_id" not in st.session_state:
+            return
 
-            if "user_id" in st.session_state:
-                user_id = st.session_state.user_id
-                view_conversation_history(agent_id, user_id)
+        user_id = st.session_state.user_id
+        view_conversation_history(agent_id, user_id)

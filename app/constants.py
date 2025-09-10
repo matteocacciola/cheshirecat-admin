@@ -1,14 +1,9 @@
-import os
-from cheshirecat_python_sdk import Configuration
 from dotenv import load_dotenv
+
+from app.env import get_env
+
 
 load_dotenv(verbose=True)
 
-CLIENT_CONFIGURATION = Configuration(
-    host=os.getenv("CHESHIRE_CAT_API_HOST", "localhost").replace("https://", "").replace("http://", ""),
-    port=int(os.getenv("CHESHIRE_CAT_API_PORT")),
-    auth_key=os.getenv("CHESHIRE_CAT_API_KEY"),
-    secure_connection=os.getenv("CHESHIRE_CAT_API_SECURE_CONNECTION", "true").lower() == "true",
-)
-
-CHECK_INTERVAL = int(os.getenv("CHESHIRE_CAT_CHECK_INTERVAL", 20))  # seconds
+CHECK_INTERVAL = int(get_env("CHESHIRE_CAT_CHECK_INTERVAL"))  # seconds
+INTRO_MESSAGE = get_env("CHESHIRE_CAT_INTRO_MESSAGE")
