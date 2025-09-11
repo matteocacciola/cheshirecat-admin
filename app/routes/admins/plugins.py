@@ -1,6 +1,8 @@
 import os
 import tempfile
 import json
+import time
+
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -31,28 +33,51 @@ def list_plugins():
             return
 
         st.subheader("Installed plugins")
-        st.write(f"Found {len(plugins.installed)} plugins:")
-        # for each installed plugin, create an expander, a button to view details, a button to uninstall and a button to manage settings
-        for installed_plugin in plugins.installed:
-            # Action buttons
+        st.markdown(f"Plugins (found {len(plugins.installed)} plugins):")
+
+        # for each installed plugin, create an expander, a button to view details, a button to uninstall and a button
+        # to manage settings
+        for p in plugins.installed:
             col1, col2, col3, col4 = st.columns([0.7, 0.1, 0.1, 0.1])
 
             with col1:
-                with st.expander(f"Plugin: {installed_plugin.name} (ID: {installed_plugin.id})", icon="🔌"):
-                    st.json(installed_plugin.model_dump())
+                with st.expander(f"Plugin: {p.name} (ID: {p.id})", icon="🔌"):
+                    st.json(p.model_dump())
 
-            if installed_plugin.id not in core_plugins_ids:
-                with col2:
-                    if st.button("View Details", key=f"view_{installed_plugin.id}"):
-                        view_plugin_details(installed_plugin.id)
+            with col2:
+                if st.button("View Details", key=f"view_{p.id}"):
+                    view_plugin_details(p.id, should_uninstall=False)
 
-                with col3:
-                    if st.button("Uninstall Plugin", key=f"uninstall_{installed_plugin.id}", type="primary", help="Uninstall this plugin"):
-                        st.session_state["plugin_to_uninstall"] = installed_plugin.id
+            with col3:
+                if p.id in core_plugins_ids:
+                    if p.id != "base_plugin" and st.button(
+                        f"{'Untoggle' if p.active else 'Toggle'} Plugin",
+                        key=f"toggle_{p.id}",
+                        type="primary",
+                        help=f"{'Untoggle' if p.active else 'Toggle'} this plugin. This is a core plugin and cannot be uninstalled.",
+                    ):
+                        spinner_container = show_overlay_spinner("Toggling plugin...")
+                        try:
+                            client.admins.put_toggle_plugin(p.id)
+                            st.toast(f"Plugin {p.id} toggled successfully!", icon="✅")
+                            time.sleep(1)  # wait a bit to let the backend process the toggle
+                        except Exception as e:
+                            st.error(f"Error toggling plugin: {e}", icon="❌")
+                        finally:
+                            spinner_container.empty()
+                        st.rerun()
+                else:
+                    if st.button(
+                        "Uninstall Plugin",
+                        key=f"uninstall_{p.id}",
+                        type="primary",
+                        help="Uninstall this plugin",
+                    ):
+                        st.session_state["plugin_to_uninstall"] = p.id
 
-                with col4:
-                    if st.button("Manage", key=f"manage{installed_plugin.id}"):
-                        manage_plugin(installed_plugin.id)
+            with col4:
+                if st.button("Manage", key=f"manage_{p.id}"):
+                    manage_plugin(p.id)
 
         # Uninstall confirmation
         if "plugin_to_uninstall" in st.session_state:
@@ -75,6 +100,8 @@ def list_plugins():
                 if st.button("Cancel"):
                     st.session_state.pop("plugin_to_uninstall", None)
                     st.rerun()
+
+        st.divider()
 
         st.subheader("Registry plugins")
         st.write(f"Found {len(plugins.registry)} plugins:")
@@ -107,7 +134,7 @@ def list_plugins():
 
 
 @st.dialog(title="Plugin Details", width="large")
-def view_plugin_details(plugin_id: str):
+def view_plugin_details(plugin_id: str, should_uninstall: bool):
     client = CheshireCatClient(build_client_configuration())
     try:
         plugin_details = client.admins.get_plugin_details(plugin_id).data
@@ -151,6 +178,9 @@ def view_plugin_details(plugin_id: str):
         # Actions
         st.divider()
         col1, col2 = st.columns(2)
+
+        if not should_uninstall:
+            return
 
         with col1:
             if st.button("Uninstall Plugin", type="primary"):
