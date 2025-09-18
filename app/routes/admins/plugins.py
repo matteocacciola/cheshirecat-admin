@@ -51,10 +51,10 @@ def list_plugins():
             with col3:
                 if p.id in core_plugins_ids:
                     if p.id != "base_plugin" and st.button(
-                        f"{'Untoggle' if p.active else 'Toggle'} Plugin",
+                        f"{'Untoggle' if p.local_info['active'] else 'Toggle'} Plugin",
                         key=f"toggle_{p.id}",
                         type="primary",
-                        help=f"{'Untoggle' if p.active else 'Toggle'} this plugin. This is a core plugin and cannot be uninstalled.",
+                        help=f"{'Untoggle' if p.local_info['active'] else 'Toggle'} this plugin. This is a core plugin and cannot be uninstalled.",
                     ):
                         spinner_container = show_overlay_spinner("Toggling plugin...")
                         try:
@@ -128,7 +128,6 @@ def list_plugins():
                     finally:
                         spinner_container.empty()
                     st.rerun()
-
     except Exception as e:
         st.error(f"Error fetching plugins: {e}")
 
@@ -145,34 +144,40 @@ def view_plugin_details(plugin_id: str, should_uninstall: bool):
         col1.write(f"**Name**: {plugin_details['name']}")
         col1.write(f"**Version**: {plugin_details['version']}")
         col1.write(f"**Author**: {plugin_details.get('author', 'Unknown')}")
-        col2.write(f"**Active**: {'✅' if plugin_details['active'] else '❌'}")
+        col2.write(f"**Active**: {'✅' if plugin_details.get('local_info', {}).get('active') else '❌'}")
         col2.write(f"**Plugin ID**: {plugin_id}")
 
         # Description
         st.write(f"**Description**: {plugin_details.get('description', 'No description provided')}")
 
         # Hooks
-        if plugin_details.get("hooks"):
+        if hooks := plugin_details.get("local_info", {}).get("hooks"):
             st.subheader("Hooks")
-            for hook in plugin_details["hooks"]:
+            for hook in hooks:
                 st.write(f"- {hook['name']} (priority: {hook['priority']})")
 
         # Tools
-        if plugin_details.get("tools"):
+        if tools := plugin_details.get("local_info", {}).get("tools"):
             st.subheader("Tools")
-            for tool in plugin_details["tools"]:
+            for tool in tools:
                 st.write(f"- {tool['name']}")
 
         # Forms
-        if plugin_details.get("forms"):
+        if forms := plugin_details.get("local_info", {}).get("forms"):
             st.subheader("Forms")
-            for form in plugin_details["forms"]:
+            for form in forms:
                 st.write(f"- {form['name']}")
 
+        # MCP clients
+        if mcp_clients := plugin_details.get("local_info", {}).get("mcp_clients"):
+            st.subheader("MCP Clients")
+            for client_info in mcp_clients:
+                st.write(f"- {client_info['name']}")
+
         # Endpoints
-        if plugin_details.get("endpoints"):
+        if endpoints := plugin_details.get("local_info", {}).get("endpoints"):
             st.subheader("API Endpoints")
-            for endpoint in plugin_details["endpoints"]:
+            for endpoint in endpoints:
                 st.write(f"- {endpoint['name']} (tags: {', '.join(endpoint['tags'])})")
 
         # Actions
