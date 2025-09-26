@@ -128,7 +128,7 @@ def render_sidebar_navigation():
 
     if st.session_state.get("token") == get_env("CHESHIRE_CAT_API_KEY"):
         st.sidebar.info("""You are logged in with the default API key.
-For security reasons, please consider creating an admin user and logging in with its credentials.""")
+For security reasons, please consider creating admin users and logging in by credentials.""")
         return navigation_options[selected_page]
 
     # logout button

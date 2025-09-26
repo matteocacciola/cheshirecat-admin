@@ -38,7 +38,11 @@ def list_plugins():
         # for each installed plugin, create an expander, a button to view details, a button to uninstall and a button
         # to manage settings
         for p in plugins.installed:
-            col1, col2, col3, col4 = st.columns([0.7, 0.1, 0.1, 0.1])
+            col0, col1, col2, col3, col4 = st.columns([0.05, 0.65, 0.1, 0.1, 0.1])
+
+            with col0:
+                if p.thumb:
+                    st.image(p.thumb, width="stretch")
 
             with col1:
                 with st.expander(f"Plugin: {p.name} (ID: {p.id})", icon="🔌"):
@@ -46,7 +50,7 @@ def list_plugins():
 
             with col2:
                 if st.button("View Details", key=f"view_{p.id}"):
-                    view_plugin_details(p.id, should_uninstall=False)
+                    view_plugin_details(p.id)
 
             with col3:
                 if p.id in core_plugins_ids:
@@ -76,7 +80,7 @@ def list_plugins():
                         st.session_state["plugin_to_uninstall"] = p.id
 
             with col4:
-                if p.local_info['active'] and st.button("Manage", key=f"manage_{p.id}"):
+                if p.id != "base_plugin" and p.local_info["active"] and st.button("Manage", key=f"manage_{p.id}"):
                     manage_plugin(p.id)
 
         # Uninstall confirmation
@@ -88,7 +92,7 @@ def list_plugins():
                 if st.button("Yes, Uninstall Plugin", type="primary"):
                     spinner_container = show_overlay_spinner("Uninstalling plugin...")
                     try:
-                        client.plugins.delete_plugin(plugin)
+                        client.admins.delete_plugin(plugin)
                         st.toast(f"Plugin {plugin} uninstalled successfully!", icon="✅")
                         st.session_state.pop("plugin_to_uninstall", None)
                     except Exception as e:
@@ -106,7 +110,11 @@ def list_plugins():
         st.subheader("Registry plugins")
         st.write(f"Found {len(plugins.registry)} plugins:")
         for registry_plugin in sorted(plugins.registry, key=lambda x: x.name):
-            col1, col2 = st.columns([0.7, 0.3])
+            col0, col1, col2 = st.columns([0.05, 0.65, 0.3])
+
+            with col0:
+                if registry_plugin.thumb:
+                    st.image(registry_plugin.thumb, width="stretch")
 
             with col1:
                 with st.expander(f"Plugin: {registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
@@ -133,7 +141,7 @@ def list_plugins():
 
 
 @st.dialog(title="Plugin Details", width="large")
-def view_plugin_details(plugin_id: str, should_uninstall: bool):
+def view_plugin_details(plugin_id: str):
     client = CheshireCatClient(build_client_configuration())
     try:
         plugin_details = client.admins.get_plugin_details(plugin_id).data
@@ -179,31 +187,6 @@ def view_plugin_details(plugin_id: str, should_uninstall: bool):
             st.subheader("API Endpoints")
             for endpoint in endpoints:
                 st.write(f"- {endpoint['name']} (tags: {', '.join(endpoint['tags'])})")
-
-        # Actions
-        st.divider()
-        col1, col2 = st.columns(2)
-
-        if not should_uninstall:
-            return
-
-        with col1:
-            if st.button("Uninstall Plugin", type="primary"):
-                spinner_container = show_overlay_spinner("Uninstalling plugin...")
-                try:
-                    result = client.plugins.delete_plugin(plugin_id)
-                    st.session_state["toast"] = {
-                        "message": f"Plugin {result.deleted} uninstalled successfully!", "icon": "✅"
-                    }
-                except Exception as e:
-                    st.session_state["toast"] = {"message": f"Error uninstalling plugin: {e}", "icon": "❌"}
-                finally:
-                    spinner_container.empty()
-                st.rerun()
-
-        with col2:
-            if st.button("Back to list"):
-                st.rerun()
     except Exception as e:
         st.error(f"Error fetching plugin details: {e}")
         if st.button("Back to list"):
@@ -221,15 +204,16 @@ def manage_plugin(plugin_id: str):
 
     # fetch the plugin
     try:
-        plugins_installed = client.plugins.get_available_plugins(agent_id, plugin_id).installed
-        is_plugin_installed = any(plugin.id == plugin_id for plugin in plugins_installed)
+        r = client.plugins.get_available_plugins(agent_id, plugin_id)
+        plugins_active = [r for r in r.installed if r.local_info and r.local_info.get("active")]
+        is_plugin_active = any(plugin.id == plugin_id for plugin in plugins_active)
     except Exception as e:
         st.error(f"Error fetching plugin: {e}")
         return
 
     # if the plugin is installed, fetch its settings and display them in a form to be edited
     st.header(f"Manage Plugin: {plugin_id}")
-    if is_plugin_installed:
+    if is_plugin_active:
         try:
             plugin_settings = client.plugins.get_plugin_settings(plugin_id, agent_id)
 
@@ -281,17 +265,17 @@ You have to activate the plugin before managing its settings.""")
     col1, col2 = st.columns(2)
     # in any case, display a button to toggle / untoggle the plugin
     with col1:
-        if st.button(f"{'Untoggle' if is_plugin_installed else 'Toggle'} Plugin", type="primary"):
-            spinner_container = show_overlay_spinner(f"{'Untoggling' if is_plugin_installed else 'Toggling'} plugin...")
+        if st.button(f"{'Untoggle' if is_plugin_active else 'Toggle'} Plugin", type="primary"):
+            spinner_container = show_overlay_spinner(f"{'Untoggling' if is_plugin_active else 'Toggling'} plugin...")
             try:
                 client.plugins.put_toggle_plugin(plugin_id, agent_id)
                 st.session_state["toast"] = {
-                    "message": f"Plugin {plugin_id} {'untoggled' if is_plugin_installed else 'toggled'} successfully!",
+                    "message": f"Plugin {plugin_id} {'untoggled' if is_plugin_active else 'toggled'} successfully!",
                     "icon": "✅",
                 }
             except Exception as e:
                 st.session_state["toast"] = {
-                    "message": f"Error {'untoggling' if is_plugin_installed else 'toggling'} plugin: {e}",
+                    "message": f"Error {'untoggling' if is_plugin_active else 'toggling'} plugin: {e}",
                     "icon": "❌"
                 }
             finally:
