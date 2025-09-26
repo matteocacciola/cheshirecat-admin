@@ -76,7 +76,7 @@ def list_plugins():
                         st.session_state["plugin_to_uninstall"] = p.id
 
             with col4:
-                if st.button("Manage", key=f"manage_{p.id}"):
+                if p.local_info['active'] and st.button("Manage", key=f"manage_{p.id}"):
                     manage_plugin(p.id)
 
         # Uninstall confirmation
