@@ -262,7 +262,7 @@ You have to activate the plugin before managing its settings.""")
 
     st.divider()
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     # in any case, display a button to toggle / untoggle the plugin
     with col1:
         if st.button(f"{'Untoggle' if is_plugin_active else 'Toggle'} Plugin", type="primary"):
@@ -283,6 +283,24 @@ You have to activate the plugin before managing its settings.""")
             st.rerun()
 
     with col2:
+        if is_plugin_active and st.button("Reset Plugin", type="primary"):
+            spinner_container = show_overlay_spinner("Resetting the plugin to the factory status...")
+            try:
+                client.plugins.post_plugin_reset_settings(plugin_id, agent_id)
+                st.session_state["toast"] = {
+                    "message": f"Plugin {plugin_id} reset successfully!",
+                    "icon": "✅",
+                }
+            except Exception as e:
+                st.session_state["toast"] = {
+                    "message": f"Error resetting plugin: {e}",
+                    "icon": "❌"
+                }
+            finally:
+                spinner_container.empty()
+            st.rerun()
+
+    with col3:
         if st.button("Back to list"):
             st.rerun()
 
