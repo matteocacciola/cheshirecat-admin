@@ -2,6 +2,7 @@ import os
 import tempfile
 import json
 import time
+from typing import Any, Dict
 
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
@@ -13,6 +14,235 @@ from app.utils import (
     show_overlay_spinner,
     build_client_configuration,
 )
+
+# Pagination settings
+ITEMS_PER_PAGE = 10
+
+
+def infer_type(value: Any) -> str:
+    """Infer the appropriate input type for a value."""
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "float"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, (list, dict)):
+        return "json"
+    return "string"
+
+
+def create_input_field(key: str, value: Any, path: str) -> Any:
+    """Create appropriate Streamlit input field based on value type."""
+    field_type = infer_type(value)
+
+    if field_type == "boolean":
+        return st.checkbox(key, value=value, key=path)
+    if field_type == "integer":
+        return st.number_input(key, value=value, step=1, key=path)
+    if field_type == "float":
+        return st.number_input(key, value=value, step=0.1, format="%.2f", key=path)
+    if field_type == "string":
+        return st.text_input(key, value=value, key=path)
+    if field_type == "json":
+        # For nested structures, show as editable JSON text
+        json_str = json.dumps(value, indent=2)
+        result = st.text_area(key, value=json_str, height=100, key=path)
+        try:
+            return json.loads(result)
+        except:
+            st.error(f"Invalid JSON in field '{key}'")
+            return value
+
+    return value
+
+
+def render_json_form(data: Dict, prefix: str = "") -> Dict:
+    """Recursively render form fields for JSON data."""
+    result = {}
+
+    for key, value in data.items():
+        path = f"{prefix}.{key}" if prefix else key
+
+        if isinstance(value, dict) and not any(isinstance(v, (list, dict)) for v in value.values()):
+            # Simple dict - render fields inline
+            st.subheader(key)
+            result[key] = render_json_form(value, path)
+        else:
+            # Render single field
+            result[key] = create_input_field(key, value, path)
+
+    return result
+
+
+def render_pagination_controls(section_key, current_page, total_pages):
+    """Render pagination controls for a section."""
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+
+    with col1:
+        if st.button("← Previous", key=f"{section_key}_prev", disabled=current_page == 0):
+            st.session_state[f"{section_key}_page"] -= 1
+            st.rerun()
+
+    with col2:
+        st.markdown(
+            f"<div style='text-align: center; margin-top: 0.5em;'>Page {current_page + 1} of {total_pages}</div>",
+            unsafe_allow_html=True
+        )
+
+    with col3:
+        page_input = st.number_input(
+            "Go to page",
+            min_value=1,
+            max_value=total_pages,
+            value=current_page + 1,
+            step=1,
+            key=f"{section_key}_page_input",
+            label_visibility="collapsed"
+        )
+        if page_input != current_page + 1:
+            st.session_state[f"{section_key}_page"] = page_input - 1
+            st.rerun()
+
+    with col4:
+        if st.button("Next →", key=f"{section_key}_next", disabled=current_page >= total_pages - 1):
+            st.session_state[f"{section_key}_page"] += 1
+            st.rerun()
+
+
+def paginate_items(items, section_key, items_per_page):
+    """Paginate a list of items and return the current page items."""
+    # Initialize session state for pagination
+    if f"{section_key}_page" not in st.session_state:
+        st.session_state[f"{section_key}_page"] = 0
+
+    total_items = len(items)
+    total_pages = (total_items - 1) // items_per_page + 1 if total_items > 0 else 1
+    current_page = st.session_state[f"{section_key}_page"]
+
+    # Calculate pagination range
+    start_idx = current_page * items_per_page
+    end_idx = min(start_idx + items_per_page, total_items)
+    paginated_items = items[start_idx:end_idx]
+
+    return paginated_items, current_page, total_pages
+
+
+def render_installed_plugin(p, core_plugins_ids, client):
+    """Render a single installed plugin row."""
+    col0, col1, col2, col3, col4 = st.columns([0.05, 0.63, 0.1, 0.12, 0.1])
+
+    with col0:
+        if p.thumb:
+            st.markdown(
+                f'<img src="{p.thumb}" alt="" style="width: 100%; margin-bottom: 1em;" />',
+                unsafe_allow_html=True
+            )
+            # st.image(p.thumb, width="stretch")
+
+    with col1:
+        with st.expander(f"Plugin: {p.name} (ID: {p.id})", icon="🔌"):
+            st.json(p.model_dump())
+
+    with col2:
+        if st.button("View Details", key=f"view_{p.id}"):
+            view_plugin_details(p.id)
+
+    with col3:
+        if p.id in core_plugins_ids:
+            if p.id != "base_plugin" and st.button(
+                    f"{'Untoggle' if p.local_info['active'] else 'Toggle'} Plugin",
+                    key=f"toggle_{p.id}",
+                    type="primary",
+                    help=f"{'Untoggle' if p.local_info['active'] else 'Toggle'} this plugin. This is a core plugin and cannot be uninstalled.",
+            ):
+                spinner_container = show_overlay_spinner("Toggling plugin...")
+                try:
+                    client.admins.put_toggle_plugin(p.id)
+                    st.toast(f"Plugin {p.id} toggled successfully!", icon="✅")
+                    time.sleep(1)
+                except Exception as e:
+                    st.error(f"Error toggling plugin: {e}", icon="❌")
+                finally:
+                    spinner_container.empty()
+                st.rerun()
+        else:
+            if st.button(
+                    "Uninstall Plugin",
+                    key=f"uninstall_{p.id}",
+                    type="primary",
+                    help="Uninstall this plugin",
+            ):
+                st.session_state["plugin_to_uninstall"] = p.id
+
+    with col4:
+        if p.id != "base_plugin" and p.local_info["active"] and st.button("Manage", key=f"manage_{p.id}"):
+            manage_plugin(p.id)
+
+
+def render_registry_plugin(registry_plugin, client):
+    """Render a single registry plugin row."""
+    plugin_url = registry_plugin.id
+
+    col0, col1, col2 = st.columns([0.05, 0.65, 0.3])
+
+    with col0:
+        if registry_plugin.thumb:
+            st.markdown(
+                f'<img src="{registry_plugin.thumb}" alt="" style="width: 100%; margin-bottom: 1em;" />',
+                unsafe_allow_html=True
+            )
+            # st.image(registry_plugin.thumb, width="stretch")
+
+    with col1:
+        with st.expander(f"Plugin: {registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
+            st.write(f"**Version**: {registry_plugin.version}")
+            st.write(f"**Author**: {registry_plugin.author_name} - [Profile]({registry_plugin.author_url})")
+            st.write(f"**Description**: {registry_plugin.description or 'No description provided'}")
+            st.write(f"**Plugin URL**: [Link]({plugin_url})")
+            st.write(f"**Tags**: {registry_plugin.tags or 'No tags'}")
+
+    with col2:
+        if st.button("Install Plugin", key=f"install_{registry_plugin.name}"):
+            spinner_container = show_overlay_spinner("Installing plugin...")
+            try:
+                client.admins.post_install_plugin_from_registry(url=plugin_url)
+                st.toast("Installation successful!", icon="✅")
+            except Exception as e:
+                st.toast(f"Error installing plugin: {e}", icon="❌")
+            finally:
+                spinner_container.empty()
+            st.rerun()
+
+
+def render_uninstall_confirmation(client):
+    """Render the uninstall confirmation dialog."""
+    if "plugin_to_uninstall" not in st.session_state:
+        return
+
+    plugin = st.session_state["plugin_to_uninstall"]
+    st.warning(f"⚠️ Are you sure you want to permanently uninstall plugin `{plugin}`?")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Yes, Uninstall Plugin", type="primary"):
+            spinner_container = show_overlay_spinner("Uninstalling plugin...")
+            try:
+                client.admins.delete_plugin(plugin)
+                st.toast(f"Plugin {plugin} uninstalled successfully!", icon="✅")
+                st.session_state.pop("plugin_to_uninstall", None)
+            except Exception as e:
+                st.error(f"Error uninstalling plugin: {e}", icon="❌")
+            finally:
+                spinner_container.empty()
+            st.rerun()
+
+    with col2:
+        if st.button("Cancel"):
+            st.session_state.pop("plugin_to_uninstall", None)
+            st.rerun()
 
 
 def list_plugins():
@@ -26,116 +256,52 @@ def list_plugins():
 
     try:
         core_plugins_ids = client.custom.get_custom("/admins/core_plugins", "system")
-
         plugins = client.admins.get_available_plugins(plugin_name=search_query)
+
         if not plugins:
             st.info("No plugins found matching your search")
             return
 
+        # ==================== INSTALLED PLUGINS ====================
         st.subheader("Installed plugins")
         st.markdown(f"Plugins (found {len(plugins.installed)} plugins):")
 
-        # for each installed plugin, create an expander, a button to view details, a button to uninstall and a button
-        # to manage settings
-        for p in plugins.installed:
-            col0, col1, col2, col3, col4 = st.columns([0.05, 0.65, 0.1, 0.1, 0.1])
+        if plugins.installed:
+            paginated_installed, current_page, total_pages = paginate_items(
+                plugins.installed, "installed", ITEMS_PER_PAGE
+            )
 
-            with col0:
-                if p.thumb:
-                    st.image(p.thumb, width="stretch")
+            # Display paginated installed plugins
+            for p in paginated_installed:
+                render_installed_plugin(p, core_plugins_ids, client)
 
-            with col1:
-                with st.expander(f"Plugin: {p.name} (ID: {p.id})", icon="🔌"):
-                    st.json(p.model_dump())
-
-            with col2:
-                if st.button("View Details", key=f"view_{p.id}"):
-                    view_plugin_details(p.id)
-
-            with col3:
-                if p.id in core_plugins_ids:
-                    if p.id != "base_plugin" and st.button(
-                        f"{'Untoggle' if p.local_info['active'] else 'Toggle'} Plugin",
-                        key=f"toggle_{p.id}",
-                        type="primary",
-                        help=f"{'Untoggle' if p.local_info['active'] else 'Toggle'} this plugin. This is a core plugin and cannot be uninstalled.",
-                    ):
-                        spinner_container = show_overlay_spinner("Toggling plugin...")
-                        try:
-                            client.admins.put_toggle_plugin(p.id)
-                            st.toast(f"Plugin {p.id} toggled successfully!", icon="✅")
-                            time.sleep(1)  # wait a bit to let the backend process the toggle
-                        except Exception as e:
-                            st.error(f"Error toggling plugin: {e}", icon="❌")
-                        finally:
-                            spinner_container.empty()
-                        st.rerun()
-                else:
-                    if st.button(
-                        "Uninstall Plugin",
-                        key=f"uninstall_{p.id}",
-                        type="primary",
-                        help="Uninstall this plugin",
-                    ):
-                        st.session_state["plugin_to_uninstall"] = p.id
-
-            with col4:
-                if p.id != "base_plugin" and p.local_info["active"] and st.button("Manage", key=f"manage_{p.id}"):
-                    manage_plugin(p.id)
+            # Pagination controls for installed plugins
+            if total_pages > 1:
+                render_pagination_controls("installed", current_page, total_pages)
 
         # Uninstall confirmation
-        if "plugin_to_uninstall" in st.session_state:
-            plugin = st.session_state["plugin_to_uninstall"]
-            st.warning(f"⚠️ Are you sure you want to permanently uninstall plugin `{plugin}`?")
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("Yes, Uninstall Plugin", type="primary"):
-                    spinner_container = show_overlay_spinner("Uninstalling plugin...")
-                    try:
-                        client.admins.delete_plugin(plugin)
-                        st.toast(f"Plugin {plugin} uninstalled successfully!", icon="✅")
-                        st.session_state.pop("plugin_to_uninstall", None)
-                    except Exception as e:
-                        st.error(f"Error uninstalling plugin: {e}", icon="❌")
-                    finally:
-                        spinner_container.empty()
-                    st.rerun()
-            with col2:
-                if st.button("Cancel"):
-                    st.session_state.pop("plugin_to_uninstall", None)
-                    st.rerun()
+        render_uninstall_confirmation(client)
 
         st.divider()
 
+        # ==================== REGISTRY PLUGINS ====================
         st.subheader("Registry plugins")
         st.write(f"Found {len(plugins.registry)} plugins:")
-        for registry_plugin in sorted(plugins.registry, key=lambda x: x.name):
-            col0, col1, col2 = st.columns([0.05, 0.65, 0.3])
 
-            with col0:
-                if registry_plugin.thumb:
-                    st.image(registry_plugin.thumb, width="stretch")
+        if plugins.registry:
+            sorted_registry = sorted(plugins.registry, key=lambda x: x.name)
+            paginated_registry, current_page, total_pages = paginate_items(
+                sorted_registry, "registry", ITEMS_PER_PAGE
+            )
 
-            with col1:
-                with st.expander(f"Plugin: {registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
-                    st.write(f"**Version**: {registry_plugin.version}")
-                    st.write(f"**Author**: {registry_plugin.author_name} - [Profile]({registry_plugin.author_url})")
-                    st.write(f"**Description**: {registry_plugin.description or 'No description provided'}")
-                    st.write(f"**Plugin URL**: [Link]({registry_plugin.plugin_url})")
-                    st.write(f"**Tags**: {registry_plugin.tags or 'No tags'}")
+            # Display paginated registry plugins
+            for registry_plugin in paginated_registry:
+                render_registry_plugin(registry_plugin, client)
 
-            with col2:
-                if st.button("Install Plugin", key=f"install_{registry_plugin.name}"):
-                    spinner_container = show_overlay_spinner("Installing plugin...")
-                    plugin_url = registry_plugin.plugin_url
-                    try:
-                        client.admins.post_install_plugin_from_registry(url=plugin_url)
-                        st.toast("Installation successful!", icon="✅")
-                    except Exception as e:
-                        st.toast(f"Error installing plugin: {e}", icon="❌")
-                    finally:
-                        spinner_container.empty()
-                    st.rerun()
+            # Pagination controls for registry plugins
+            if total_pages > 1:
+                render_pagination_controls("registry", current_page, total_pages)
+
     except Exception as e:
         st.error(f"Error fetching plugins: {e}")
 
@@ -215,38 +381,35 @@ def manage_plugin(plugin_id: str):
     st.header(f"Manage Plugin: {plugin_id}")
     if is_plugin_active:
         try:
-            plugin_settings = client.plugins.get_plugin_settings(plugin_id, agent_id)
+            if plugin_settings := get_factory_settings(
+                    client.plugins.get_plugin_settings(plugin_id, agent_id),
+                    is_selected=True
+            ):
+                st.subheader("Plugin Settings")
+                with st.form("plugin_settings_form", clear_on_submit=True):
+                    # Render the form
+                    edited_settings = render_json_form(plugin_settings)
 
-            st.subheader("Plugin Settings")
-            with st.form("plugin_settings_form", clear_on_submit=True):
-                # Display current settings as editable JSON
-                edited_settings = st.text_area(
-                    "Settings (JSON format)",
-                    value=json.dumps(get_factory_settings(plugin_settings, is_selected=True), indent=4),
-                    height=300
-                )
+                    # # Show current JSON output at the bottom
+                    # st.divider()
+                    # with st.expander("View as JSON"):
+                    #     st.json(edited_settings)
 
-                st.write(
-                    "**Note:** Make sure to keep the JSON format valid. You can use online JSON validators if needed."
-                )
-                st.divider()
-
-                submitted = st.form_submit_button("Save Changes")
-                if submitted:
-                    spinner_container = show_overlay_spinner("Saving plugin settings...")
-                    try:
-                        settings_dict = json.loads(edited_settings)
-                        client.plugins.put_plugin_settings(plugin_id, agent_id, settings_dict)
-                        st.session_state["toast"] = {
-                            "message": f"Plugin {plugin_id} settings updated successfully!", "icon": "✅"
-                        }
-                    except json.JSONDecodeError:
-                        st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
-                    except Exception as e:
-                        st.session_state["toast"] = {"message": f"Error updating plugin settings: {e}", "icon": "❌"}
-                    finally:
-                        spinner_container.empty()
-                    st.rerun()
+                    submitted = st.form_submit_button("Save Changes")
+                    if submitted:
+                        spinner_container = show_overlay_spinner("Saving plugin settings...")
+                        try:
+                            client.plugins.put_plugin_settings(plugin_id, agent_id, edited_settings)
+                            st.session_state["toast"] = {
+                                "message": f"Plugin {plugin_id} settings updated successfully!", "icon": "✅"
+                            }
+                        except json.JSONDecodeError:
+                            st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
+                        except Exception as e:
+                            st.session_state["toast"] = {"message": f"Error updating plugin settings: {e}", "icon": "❌"}
+                        finally:
+                            spinner_container.empty()
+                        st.rerun()
         except Exception as e:
             st.error(f"Error fetching plugin settings: {e}")
     else:
