@@ -1,3 +1,4 @@
+import json
 from typing import Dict, Any
 from slugify import slugify
 import streamlit as st
@@ -110,3 +111,61 @@ def build_client_configuration():
         auth_key=st.session_state.get("token"),
         secure_connection=get_env_bool("CHESHIRE_CAT_API_SECURE_CONNECTION"),
     )
+
+
+def infer_type(value: Any) -> str:
+    """Infer the appropriate input type for a value."""
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "float"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, (list, dict)):
+        return "json"
+    return "string"
+
+
+def create_input_field(key: str, value: Any, path: str) -> Any:
+    """Create appropriate Streamlit input field based on value type."""
+    field_type = infer_type(value)
+
+    if field_type == "boolean":
+        return st.checkbox(key, value=value, key=path)
+    if field_type == "integer":
+        return st.number_input(key, value=value, step=1, key=path)
+    if field_type == "float":
+        return st.number_input(key, value=value, step=0.1, format="%.2f", key=path)
+    if field_type == "string":
+        return st.text_input(key, value=value, key=path)
+    if field_type == "json":
+        # For nested structures, show as editable JSON text
+        json_str = json.dumps(value, indent=2)
+        result = st.text_area(key, value=json_str, height=100, key=path)
+        try:
+            return json.loads(result)
+        except:
+            st.error(f"Invalid JSON in field '{key}'")
+            return value
+
+    return value
+
+
+def render_json_form(data: Dict, prefix: str = "") -> Dict:
+    """Recursively render form fields for JSON data."""
+    result = {}
+
+    for key, value in data.items():
+        path = f"{prefix}.{key}" if prefix else key
+
+        if isinstance(value, dict) and not any(isinstance(v, (list, dict)) for v in value.values()):
+            # Simple dict - render fields inline
+            st.subheader(key)
+            result[key] = render_json_form(value, path)
+        else:
+            # Render single field
+            result[key] = create_input_field(key, value, path)
+
+    return result

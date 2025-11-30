@@ -227,11 +227,7 @@ def list_files(agent_id: str):
                 try:
                     spinner_container = show_overlay_spinner(f"Deleting file {file.name}...")
 
-                    client.memory.delete_memory_points_by_metadata(
-                        collection="declarative",
-                        agent_id=agent_id,
-                        metadata={"source": file.name}
-                    )
+                    client.file_manager.delete_file(agent_id, file.name)
                     st.toast(f"File {file.name} deleted successfully!", icon="✅")
                     st.session_state.pop("file_to_delete", None)
                     time.sleep(1)  # Wait for a moment before rerunning

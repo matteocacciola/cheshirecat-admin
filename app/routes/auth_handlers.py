@@ -8,6 +8,7 @@ from app.utils import (
     run_toast,
     show_overlay_spinner,
     build_client_configuration,
+    render_json_form,
 )
 
 
@@ -47,49 +48,40 @@ def list_auth_handlers(agent_id: str):
 def edit_auth_handler(agent_id: str, handler_name: str, is_selected: bool):
     client = CheshireCatClient(build_client_configuration())
 
+    st.subheader(f"Editing: **{handler_name}**")
     try:
-        handler_settings = client.auth_handler.get_auth_handler_settings(handler_name, agent_id)
-
+        handler_settings = get_factory_settings(
+            client.auth_handler.get_auth_handler_settings(handler_name, agent_id),
+            is_selected=is_selected
+        )
         with st.form("edit_auth_handler_form", clear_on_submit=True):
-            st.write(f"Editing: **{handler_name}**")
+            # Render the form
+            edited_settings = render_json_form(handler_settings)
+            if st.form_submit_button("Save Changes"):
+                try:
+                    spinner_container = show_overlay_spinner("Saving settings...")
+                    client.auth_handler.put_auth_handler_settings(
+                        auth_handler=handler_name,
+                        agent_id=agent_id,
+                        values=edited_settings,
+                    )
+                    st.session_state["toast"] = {
+                        "message": f"Handler {handler_name} updated successfully!", "icon": "✅"
+                    }
+                except json.JSONDecodeError:
+                    st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
+                except Exception as e:
+                    st.session_state["toast"] = {"message": f"Error updating handler: {e}", "icon": "❌"}
+                finally:
+                    spinner_container.empty()
 
-            # Display current settings as editable JSON
-            edited_settings = st.text_area(
-                "Settings (JSON format)",
-                value=json.dumps(get_factory_settings(handler_settings, is_selected), indent=4),
-                height=300
-            )
-
-            st.write("**Note:** Make sure to keep the JSON format valid. You can use online JSON validators if needed.")
-            st.divider()
-
-            if not st.form_submit_button("Save Changes"):
-                return
-
-            try:
-                spinner_container = show_overlay_spinner("Saving settings...")
-                settings_dict = json.loads(edited_settings)
-
-                client.auth_handler.put_auth_handler_settings(
-                    auth_handler=handler_name,
-                    agent_id=agent_id,
-                    values=settings_dict
-                )
-                st.session_state["toast"] = {
-                    "message": f"Handler {handler_name} updated successfully!", "icon": "✅"
-                }
-            except json.JSONDecodeError:
-                st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
-            except Exception as e:
-                st.session_state["toast"] = {"message": f"Error updating handler: {e}", "icon": "❌"}
-            finally:
-                spinner_container.empty()
-
-            st.rerun()
+                st.rerun()
     except Exception as e:
         st.error(f"Error fetching handler settings: {e}")
-        if st.button("Back to list"):
-            st.rerun()
+
+    st.divider()
+    if st.button("Back to list"):
+        st.rerun()
 
 
 def auth_handlers_management():

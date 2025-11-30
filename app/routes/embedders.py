@@ -2,7 +2,13 @@ import json
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
-from app.utils import get_factory_settings, run_toast, show_overlay_spinner, build_client_configuration
+from app.utils import (
+    get_factory_settings,
+    run_toast,
+    show_overlay_spinner,
+    build_client_configuration,
+    render_json_form,
+)
 
 
 def list_embedders():
@@ -41,48 +47,39 @@ def list_embedders():
 def edit_embedder(embedder_name: str, is_selected: bool):
     client = CheshireCatClient(build_client_configuration())
 
+    st.subheader(f"Editing: **{embedder_name}**")
     try:
-        embedder_settings = client.embedder.get_embedder_settings(embedder_name)
-
+        embedder_settings = get_factory_settings(
+                client.embedder.get_embedder_settings(embedder_name),
+                is_selected=is_selected
+        )
         with st.form("edit_embedder_form", clear_on_submit=True):
-            st.write(f"Editing: **{embedder_name}**")
+            # Render the form
+            edited_settings = render_json_form(embedder_settings)
+            if st.form_submit_button("Save Changes"):
+                try:
+                    spinner_container = show_overlay_spinner("Saving settings...")
+                    client.embedder.put_embedder_settings(
+                        embedder=embedder_name,
+                        values=edited_settings,
+                    )
+                    st.session_state["toast"] = {
+                        "message": f"Embedder {embedder_name} updated successfully!", "icon": "✅"
+                    }
+                except json.JSONDecodeError:
+                    st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
+                except Exception as e:
+                    st.session_state["toast"] = {"message": f"Error updating embedder: {e}", "icon": "❌"}
+                finally:
+                    spinner_container.empty()
 
-            # Display current settings as editable JSON
-            edited_settings = st.text_area(
-                "Settings (JSON format)",
-                value=json.dumps(get_factory_settings(embedder_settings, is_selected), indent=4),
-                height=300
-            )
-
-            st.write("**Note:** Make sure to keep the JSON format valid. You can use online JSON validators if needed.")
-            st.divider()
-
-            if not st.form_submit_button("Save Changes"):
-                return
-
-            try:
-                spinner_container = show_overlay_spinner("Saving settings...")
-                settings_dict = json.loads(edited_settings)
-
-                client.embedder.put_embedder_settings(
-                    embedder=embedder_name,
-                    values=settings_dict
-                )
-                st.session_state["toast"] = {
-                    "message": f"Embedder {embedder_name} updated successfully!", "icon": "✅"
-                }
-            except json.JSONDecodeError:
-                st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
-            except Exception as e:
-                st.session_state["toast"] = {"message": f"Error updating embedder: {e}", "icon": "❌"}
-            finally:
-                spinner_container.empty()
-
-            st.rerun()
+                st.rerun()
     except Exception as e:
         st.error(f"Error fetching embedder settings: {e}")
-        if st.button("Back to list"):
-            st.rerun()
+
+    st.divider()
+    if st.button("Back to list"):
+        st.rerun()
 
 
 def embedders_management():
