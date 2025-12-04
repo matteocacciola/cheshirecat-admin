@@ -2,7 +2,7 @@ import time
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
-from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration
+from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration, run_toast
 
 
 def create_user(agent_id: str):
@@ -55,6 +55,8 @@ def create_user(agent_id: str):
 
 
 def list_users(agent_id: str):
+    run_toast()
+
     client = CheshireCatClient(build_client_configuration())
     st.header("List All Users")
 
