@@ -21,7 +21,7 @@ def factory_reset():
 
     spinner_container = show_overlay_spinner("Performing factory reset...")
     try:
-        result = client.admins.post_factory_reset()
+        result = client.utils.post_factory_reset()
 
         if result.deleted_settings and result.deleted_plugin_folders and result.deleted_memories:
             st.toast("Factory reset completed successfully!", icon="✅")
@@ -43,7 +43,7 @@ def list_agents():
     st.header("Agent Management")
 
     try:
-        agents = client.admins.get_agents()
+        agents = client.utils.get_agents()
 
         if not agents:
             st.info("No agents found")
@@ -51,18 +51,65 @@ def list_agents():
 
         st.write("### Existing Agents")
         for agent in agents:
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
             col1.write(f"**Agent ID**: `{agent}`")
 
             with col2:
-                if st.button("Reset", key=f"reset_{agent}", type="primary", help="Reset agent settings and memories"):
-                    st.session_state["agent_to_reset"] = agent
+                if st.button(
+                        "Clone",
+                        key=f"clone_{agent}",
+                        type="primary",
+                        help="Clone this agent and all associated data"
+                ):
+                    st.session_state["agent_to_clone"] = agent
 
             with col3:
-                if st.button("Destroy", key=f"destroy_{agent}", type="primary", help="Permanently destroy agent and all associated data"):
+                if st.button(
+                        "Reset",
+                        key=f"reset_{agent}",
+                        type="primary",
+                        help="Reset this agent settings and memories"
+                ):
+                    st.session_state["agent_to_reset"] = agent
+
+            with col4:
+                if st.button(
+                        "Destroy",
+                        key=f"destroy_{agent}",
+                        type="primary",
+                        help="Permanently destroy this agent and all associated data"
+                ):
                     st.session_state["agent_to_destroy"] = agent
 
             st.divider()
+
+        # Clone confirmation
+        if "agent_to_clone" in st.session_state:
+            agent = st.session_state["agent_to_clone"]
+            st.warning(f"⚠️ Are you sure you want to clone agent `{agent}`?")
+
+            new_agent_id = st.text_input("New Agent ID", value=f"{agent}_clone", key="new_agent_id_input")
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Yes, Clone Agent", type="primary"):
+                    try:
+                        with st.spinner(f"Cloning agent {agent}..."):
+                            result = client.utils.post_agent_clone(agent_id=agent, new_agent_id=new_agent_id)
+                        if result.cloned:
+                            st.toast(f"Agent {agent} cloned successfully!", icon="✅")
+                            st.session_state.pop("agent_to_clone", None)
+                            time.sleep(1)  # Wait for a moment before rerunning
+                            st.rerun()
+                        else:
+                            st.toast(f"Failed to clone agent {agent}", icon="❌")
+                    except Exception as e:
+                        st.toast(f"Error cloning agent: {e}", icon="❌")
+
+            with col2:
+                if st.button("Cancel"):
+                    st.session_state.pop("agent_to_clone", None)
+                    st.rerun()
 
         # Reset confirmation
         if "agent_to_reset" in st.session_state:
@@ -70,10 +117,10 @@ def list_agents():
             st.warning(f"⚠️ Are you sure you want to permanently reset agent `{agent}`?")
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("Yes, Destroy Agent", type="primary"):
+                if st.button("Yes, Reset Agent", type="primary"):
                     try:
                         with st.spinner(f"Resetting agent {agent}..."):
-                            result = client.admins.post_agent_reset(agent_id=agent)
+                            result = client.utils.post_agent_reset(agent_id=agent)
                         if result.deleted_settings:
                             st.toast(f"Agent {agent} reset successfully!", icon="✅")
                             st.session_state.pop("agent_to_reset", None)
@@ -98,7 +145,7 @@ def list_agents():
                 if st.button("Yes, Destroy Agent", type="primary"):
                     try:
                         with st.spinner(f"Destroying agent {agent}..."):
-                            result = client.admins.post_agent_destroy(agent_id=agent)
+                            result = client.utils.post_agent_destroy(agent_id=agent)
                         if result.deleted_settings and result.deleted_memories:
                             st.toast(f"Agent {agent} destroyed successfully!", icon="✅")
                             st.session_state.pop("agent_to_destroy", None)
@@ -133,7 +180,7 @@ def create_agent():
 
         try:
             spinner_container = show_overlay_spinner(f"Creating agent {agent_id}...")
-            result = client.admins.post_agent_create(agent_id=agent_id)
+            result = client.utils.post_agent_create(agent_id=agent_id)
             if result.created:
                 st.toast(f"Agent {agent_id} created successfully!", icon="✅")
             else:
@@ -144,7 +191,7 @@ def create_agent():
             spinner_container.empty()
 
 
-def admin_system_management():
+def utilities_management():
     st.title("System Management Dashboard")
 
     # Navigation

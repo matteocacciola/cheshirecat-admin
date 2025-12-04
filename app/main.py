@@ -222,8 +222,8 @@ def main():
         return
 
     if current_page == "system":
-        from app.routes.admins.utilities import admin_system_management
-        admin_system_management()
+        from app.routes.utilities import utilities_management
+        utilities_management()
 
 
 # ----- Main application -----

@@ -26,7 +26,7 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
 
 def build_agents_select():
     client = CheshireCatClient(build_client_configuration())
-    agents = client.admins.get_agents()
+    agents = client.utils.get_agents()
 
     # Sidebar navigation
     menu_options = {"(Select an Agent)": None} | {agent: slugify(agent) for agent in agents}
