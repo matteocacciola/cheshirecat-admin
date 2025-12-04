@@ -328,7 +328,7 @@ def manage_plugin(plugin_id: str):
                     is_selected=True
             ):
                 st.subheader("Plugin Settings")
-                with st.form("plugin_settings_form", clear_on_submit=True):
+                with st.form("plugin_settings_form", clear_on_submit=True, enter_to_submit=False):
                     # Render the form
                     edited_settings = render_json_form(plugin_settings)
 
@@ -408,7 +408,7 @@ def install_plugin_from_file():
     client = CheshireCatClient(build_client_configuration())
     st.header("Install Plugin from File")
 
-    with st.form("upload_plugin_form", clear_on_submit=True):
+    with st.form("upload_plugin_form", clear_on_submit=True, enter_to_submit=False):
         uploaded_file = st.file_uploader(
             "Choose a plugin ZIP file",
             type=["zip"],

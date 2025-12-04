@@ -8,8 +8,12 @@ from app.utils import run_toast, show_overlay_spinner, build_client_configuratio
 def create_admin():
     client = CheshireCatClient(build_client_configuration())
 
+    # Initialize form key in session state if not present
+    if "admin_form_key" not in st.session_state:
+        st.session_state.admin_form_key = 0
+
     st.header("Create New Admin")
-    with st.form("create_admin_form", clear_on_submit=True):
+    with st.form(f"create_admin_form_{st.session_state.admin_form_key}", enter_to_submit=False):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
 
@@ -23,24 +27,31 @@ def create_admin():
             cols = st.columns(len(perms))
             permissions = []
             for i, perm in enumerate(perms):
-                is_checked = cols[i].checkbox(perm, key=f"{res}_{perm}")
+                is_checked = cols[i].checkbox(perm, key=f"{res}_{perm}_{st.session_state.admin_form_key}")
                 if is_checked:
                     permissions.append(perm)
             selected_permissions[res] = permissions
 
         if not st.form_submit_button("Create Admin"):
             return
+
         if not username or not password:
             st.error("Username and password are required")
             return
-        if not selected_permissions:
+
+        if all(len(perms) == 0 for perms in selected_permissions.values()):
             st.error("At least one permission must be selected")
             return
+
         spinner_container = show_overlay_spinner("Creating admin...")
         try:
             result = client.admins.post_admin(username, password, selected_permissions)
             st.toast(f"Admin {result.username} created successfully!", icon="✅")
-            st.json(result)
+            time.sleep(1)
+
+            # Increment form key to reset the form on next rerun
+            st.session_state.admin_form_key += 1
+            st.rerun()
         except Exception as e:
             st.toast(f"Error creating admin: {e}", icon="❌")
         finally:
@@ -132,7 +143,7 @@ def update_admin(admin_id: str):
         st.error(f"Admin with ID `{admin_id}` not found")
         return
 
-    with st.form("update_admin_form", clear_on_submit=True):
+    with st.form("update_admin_form", enter_to_submit=False):
         new_username = st.text_input("Username", value=admin_data.username)
         new_password = st.text_input("Password (leave blank to keep current)", type="password")
 
@@ -159,8 +170,12 @@ def update_admin(admin_id: str):
 
         if not new_username:
             st.error("Username cannot be empty")
-        elif not selected_permissions:
+            return
+
+        if all(len(perms) == 0 for perms in selected_permissions.values()):
             st.error("At least one permission must be selected")
+            return
+
         try:
             spinner_container = show_overlay_spinner(f"Updating admin {admin_id}...")
 
@@ -171,13 +186,12 @@ def update_admin(admin_id: str):
                 permissions=selected_permissions
             )
             st.session_state["toast"] = {"message": f"Admin {result.username} updated successfully!", "icon": "✅"}
-            st.json(result)
         except Exception as e:
             st.session_state["toast"] = {"message": f"Error updating admin `{admin_id}`: {e}", "icon": "❌"}
         finally:
             spinner_container.empty()
-
-        st.rerun()
+            time.sleep(1)
+            st.rerun()
 
 
 # Streamlit UI

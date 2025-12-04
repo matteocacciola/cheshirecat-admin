@@ -8,8 +8,12 @@ from app.utils import build_agents_select, show_overlay_spinner, build_client_co
 def create_user(agent_id: str):
     client = CheshireCatClient(build_client_configuration())
 
+    # Initialize form key in session state if not present
+    if "admin_form_key" not in st.session_state:
+        st.session_state.admin_form_key = 0
+
     st.header("Create New User")
-    with st.form("create_user_form", clear_on_submit=True):
+    with st.form(f"create_user_form_{st.session_state.admin_form_key}", enter_to_submit=False):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
 
@@ -23,7 +27,7 @@ def create_user(agent_id: str):
             cols = st.columns(len(perms))
             permissions = []
             for i, perm in enumerate(perms):
-                is_checked = cols[i].checkbox(perm, key=f"{res}_{perm}")
+                is_checked = cols[i].checkbox(perm, key=f"{res}_{perm}_{st.session_state.admin_form_key}")
                 if is_checked:
                     permissions.append(perm)
             selected_permissions[res] = permissions
@@ -35,13 +39,17 @@ def create_user(agent_id: str):
             st.error("Username and password are required")
             return
 
+        spinner_container = show_overlay_spinner("Creating user...")
         try:
-            spinner_container = show_overlay_spinner("Creating user...")
-            result = client.users.post_user(agent_id, username, password, permissions if permissions else None)
-            st.toast(f"Admin {result.username} created successfully!", icon="✅")
-            st.json(result)
+            result = client.users.post_user(agent_id, username, password, selected_permissions)
+            st.toast(f"User {result.username} created successfully!", icon="✅")
+            time.sleep(1)
+
+            # Increment form key to reset the form on next rerun
+            st.session_state.admin_form_key += 1
+            st.rerun()
         except Exception as e:
-            st.toast(f"Error creating admin: {e}", icon="❌")
+            st.toast(f"Error creating user: {e}", icon="❌")
         finally:
             spinner_container.empty()
 
@@ -131,7 +139,7 @@ def update_user(agent_id: str, user_id: str):
         st.error(f"User with ID `{user_id}` not found")
         return
 
-    with st.form("update_user_form", clear_on_submit=True):
+    with st.form("update_user_form", enter_to_submit=False):
         new_username = st.text_input("Username", value=user_data.username)
         new_password = st.text_input("Password (leave blank to keep current)", type="password")
 
@@ -170,12 +178,13 @@ def update_user(agent_id: str, user_id: str):
                 password=new_password or None,
                 permissions=selected_permissions or None,
             )
-            st.toast(f"User {result.username} updated successfully!", icon="✅")
-            st.json(result)
+            st.session_state["toast"] = {"message": f"User {result.username} updated successfully!", "icon": "✅"}
         except Exception as e:
-            st.toast(f"Error updating user `{user_id}`: {e}", icon="❌")
+            st.session_state["toast"] = {"message": f"Error updating user `{user_id}`: {e}", "icon": "❌"}
         finally:
             spinner_container.empty()
+            time.sleep(1)
+            st.rerun()
 
 
 # Streamlit UI

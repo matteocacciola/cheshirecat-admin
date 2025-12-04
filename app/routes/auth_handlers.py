@@ -54,7 +54,7 @@ def edit_auth_handler(agent_id: str, handler_name: str, is_selected: bool):
             client.auth_handler.get_auth_handler_settings(handler_name, agent_id),
             is_selected=is_selected
         )
-        with st.form("edit_auth_handler_form", clear_on_submit=True):
+        with st.form("edit_auth_handler_form", clear_on_submit=True, enter_to_submit=False):
             # Render the form
             edited_settings = render_json_form(handler_settings)
             if st.form_submit_button("Save Changes"):

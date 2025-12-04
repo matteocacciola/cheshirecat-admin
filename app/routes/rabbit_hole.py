@@ -38,7 +38,7 @@ def upload_files(agent_id: str):
         st.session_state.remove_index = None
         st.rerun()
 
-    with st.form("upload_files_form", clear_on_submit=True):
+    with st.form("upload_files_form", clear_on_submit=True, enter_to_submit=False):
         # Display each file-metadata pair
         for i, pair in enumerate(st.session_state.file_metadata_pairs):
             col1, col2, col3 = st.columns([1, 1, 0.5])
@@ -123,7 +123,7 @@ def upload_url(agent_id: str):
     client = CheshireCatClient(build_client_configuration())
     st.header("Upload from URL")
 
-    with st.form("upload_url_form", clear_on_submit=True):
+    with st.form("upload_url_form", clear_on_submit=True, enter_to_submit=False):
         url = st.text_input(
             "Website URL",
             placeholder="https://example.com"

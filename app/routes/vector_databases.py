@@ -54,7 +54,7 @@ def edit_vector_database(agent_id: str, vector_database_name: str, is_selected: 
             client.vector_database.get_vector_database_settings(vector_database_name, agent_id),
             is_selected=is_selected
         )
-        with st.form("edit_vector_database_form", clear_on_submit=True):
+        with st.form("edit_vector_database_form", clear_on_submit=True, enter_to_submit=False):
             # Render the form
             edited_settings = render_json_form(vector_db_settings)
             if st.form_submit_button("Save Changes"):
