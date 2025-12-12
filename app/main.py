@@ -33,7 +33,7 @@ def apply_custom_css():
     .nav-title {
         font-size: 1.5rem;
         font-weight: bold;
-        color: #2c3e50;
+        // color: #2c3e50;
         margin-bottom: 1rem;
         padding: 0.5rem;
         border-bottom: 2px solid #667eea;
@@ -91,31 +91,46 @@ def render_sidebar_navigation():
 
     # Navigation menu with icons
     navigation_options = {
-        "💬 Chat": "chat",
-        "👥 Admins": "admins",
-        "🧬 AI Models": "ai_models",
-        "🔐 Authentication Handlers": "auth_handlers",
-        "🔪 Chunkers": "chunkers",
-        "🧠 Embedders": "embedders",
-        "📁 File Handlers": "file_handlers",
-        "📚 Knowledge Base": "rag",
-        "🔌 Plugins": "plugins",
-        "👥 Users": "users",
-        "🔗 Vector Databases": "vector_databases",
-        "🗂️ Vector Memory": "memory",
-        "⚙️ System": "system",
+        "menu_chat": {
+            "💬 Chat": "chat",
+            "🗂️ Memory & Chats": "memory",
+            "📚 Knowledge Base": "rag",
+        },
+        "menu_users": {
+            "👥 Admins": "admins",
+            "👥 Users": "users",
+        },
+        "menu_management": {
+            "🔌 Plugins": "plugins",
+            "🧬 AI Models": "ai_models",
+            "🔐 Authentication Handlers": "auth_handlers",
+            "🔪 Chunkers": "chunkers",
+            "🧠 Embedders": "embedders",
+            "📁 File Handlers": "file_handlers",
+            "🔗 Vector Databases": "vector_databases",
+        },
+        "menu_system": {
+            "⚙️ System": "system",
+        }
     }
 
     # Create the navigation menu
-    selected_page = st.sidebar.radio(
-        "Navigation",
-        list(navigation_options.keys()),
-        label_visibility="collapsed",
-        disabled=st.session_state.get("status_connection", None) != "Online",
-    )
+    for menu_key, menu_items in navigation_options.items():
+        for item_name, item_key in menu_items.items():
+            if "selected_page" not in st.session_state:
+                st.session_state["selected_page"] = None
+            if st.sidebar.button(
+                item_name,
+                key=f"nav_{item_key}",
+                type="secondary",
+                use_container_width=True,
+                disabled=(st.session_state.get("status_connection", None) != "Online") or (st.session_state["selected_page"] == item_key),
+            ):
+                st.session_state["selected_page"] = item_key
+                st.rerun()  # Force immediate rerun
 
-    # Add separator
-    st.sidebar.markdown("---")
+        # Add separator
+        st.sidebar.divider()
 
     # System status section
     status_connection = st.session_state.get("status_connection", "Warning")
@@ -124,12 +139,12 @@ def render_sidebar_navigation():
     """, unsafe_allow_html=True)
 
     # Add separator
-    st.sidebar.markdown("---")
+    st.sidebar.divider()
 
     if st.session_state.get("token") == get_env("CHESHIRE_CAT_API_KEY"):
         st.sidebar.info("""You are logged in with the default API key.
 For security reasons, please consider creating admin users and logging in by credentials.""")
-        return navigation_options[selected_page]
+        return st.session_state["selected_page"]
 
     # logout button
     if st.sidebar.button("Logout", type="primary", use_container_width=True):
@@ -139,7 +154,7 @@ For security reasons, please consider creating admin users and logging in by cre
 
         time.sleep(1)  # Wait for a moment before rerunning
         st.rerun()
-    return navigation_options[selected_page]
+    return st.session_state["selected_page"]
 
 
 def main():
@@ -158,71 +173,88 @@ def main():
 
     if current_page == "login":
         from app.routes.login import login_page
+
         login_page()
         return
 
     if current_page == "chat":
         from app.routes.message import chat
+
+        if "messages" in st.session_state:
+            st.session_state.pop("messages", None)
+
         chat()
         return
 
     if current_page == "admins":
         from app.routes.admins.crud import admin_management
+
         admin_management()
         return
 
     if current_page == "ai_models":
         from app.routes.llms import llms_management
+
         llms_management()
         return
 
     if current_page == "auth_handlers":
         from app.routes.auth_handlers import auth_handlers_management
+
         auth_handlers_management()
         return
 
     if current_page == "chunkers":
         from app.routes.chunkers import chunkers_management
+
         chunkers_management()
         return
 
     if current_page == "embedders":
         from app.routes.embedders import embedders_management
+
         embedders_management()
         return
 
     if current_page == "file_handlers":
         from app.routes.file_managers import file_managers_management
+
         file_managers_management()
         return
 
     if current_page == "rag":
         from app.routes.rabbit_hole import rabbit_hole_management
+
         rabbit_hole_management()
         return
 
     if current_page == "plugins":
         from app.routes.admins.plugins import admin_plugins_management
+
         admin_plugins_management()
         return
 
     if current_page == "users":
         from app.routes.users import users_management
+
         users_management()
         return
 
     if current_page == "vector_databases":
         from app.routes.vector_databases import vector_databases_management
+
         vector_databases_management()
         return
 
     if current_page == "memory":
         from app.routes.memories import memory_management
+
         memory_management()
         return
 
     if current_page == "system":
         from app.routes.utilities import utilities_management
+
         utilities_management()
 
 

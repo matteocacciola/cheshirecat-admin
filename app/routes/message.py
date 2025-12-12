@@ -9,17 +9,15 @@ from app.utils import build_agents_select, build_users_select, build_client_conf
 def chat():
     st.header("Chat with the CheshireCat")
 
-    build_agents_select()
-    if "agent_id" not in st.session_state:
+    build_agents_select("chat")
+    if not (agent_id := st.session_state.get("agent_id")):
         return
 
-    agent_id = st.session_state.agent_id
-    build_users_select(agent_id)
+    build_users_select("chat", agent_id)
 
-    if "user_id" not in st.session_state:
+    if not (user_id := st.session_state.get("user_id")):
         return
 
-    user_id = st.session_state.user_id
     st.session_state.messages = st.session_state.get("messages", [])
     if not st.session_state.messages and INTRO_MESSAGE:
         st.session_state.messages.append({

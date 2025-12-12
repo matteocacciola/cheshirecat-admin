@@ -211,14 +211,13 @@ def list_files(agent_id: str):
                         st.toast(f"Error downloading file: {e}", icon="❌")
 
             with col3:
-                if st.button("Delete", key=f"delete_{file.name}", type="primary", help="Permanently delete this file"):
+                if st.button("Delete", key=f"delete_{file.name}", help="Permanently delete this file"):
                     st.session_state["file_to_delete"] = file
 
         # Delete confirmation
-        if "file_to_delete" not in st.session_state:
+        if not (file := st.session_state.get("file_to_delete")):
             return
 
-        file = st.session_state["file_to_delete"]
         st.warning(f"⚠️ Are you sure you want to permanently delete file `{file.name}`?")
 
         col1, col2 = st.columns(2)
@@ -251,11 +250,9 @@ def rabbit_hole_management():
     st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
     please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the CheshireCat.""")
 
-    build_agents_select()
-    if "agent_id" not in st.session_state:
+    build_agents_select("rabbit_hole")
+    if not (agent_id := st.session_state.get("agent_id")):
         return
-
-    agent_id = st.session_state.agent_id
 
     menu_options = {
         "(Select a menu)": None,

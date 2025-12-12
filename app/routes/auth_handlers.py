@@ -87,6 +87,6 @@ def edit_auth_handler(agent_id: str, handler_name: str, is_selected: bool):
 def auth_handlers_management():
     st.title("Authentication Handlers Management Dashboard")
 
-    build_agents_select()
+    build_agents_select("auth_handlers")
     if "agent_id" in st.session_state:
         list_auth_handlers(st.session_state.agent_id)

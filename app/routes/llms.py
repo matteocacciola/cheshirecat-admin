@@ -87,6 +87,6 @@ def edit_llm(agent_id: str, llm_name: str, is_selected: bool):
 def llms_management():
     st.title("LLMs Management Dashboard")
 
-    build_agents_select()
+    build_agents_select("llms")
     if "agent_id" in st.session_state:
         list_llms(st.session_state.agent_id)

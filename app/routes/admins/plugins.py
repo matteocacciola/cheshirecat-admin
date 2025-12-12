@@ -97,7 +97,6 @@ def render_installed_plugin(p, core_plugins_ids, client):
             if p.id != "base_plugin" and st.button(
                     f"{'Untoggle' if p.local_info['active'] else 'Toggle'} Plugin",
                     key=f"toggle_{p.id}",
-                    type="primary",
                     help=f"{'Untoggle' if p.local_info['active'] else 'Toggle'} this plugin. This is a core plugin and cannot be uninstalled.",
             ):
                 spinner_container = show_overlay_spinner("Toggling plugin...")
@@ -114,7 +113,6 @@ def render_installed_plugin(p, core_plugins_ids, client):
             if st.button(
                     "Uninstall Plugin",
                     key=f"uninstall_{p.id}",
-                    type="primary",
                     help="Uninstall this plugin",
             ):
                 st.session_state["plugin_to_uninstall"] = p.id
@@ -161,10 +159,9 @@ def render_registry_plugin(registry_plugin, client):
 
 def render_uninstall_confirmation(client):
     """Render the uninstall confirmation dialog."""
-    if "plugin_to_uninstall" not in st.session_state:
+    if not (plugin := st.session_state.get("plugin_to_uninstall")):
         return
 
-    plugin = st.session_state["plugin_to_uninstall"]
     st.warning(f"⚠️ Are you sure you want to permanently uninstall plugin `{plugin}`?")
     col1, col2 = st.columns(2)
 
@@ -303,11 +300,10 @@ def view_plugin_details(plugin_id: str):
 
 @st.dialog(title="Manage Plugin", width="large")
 def manage_plugin(plugin_id: str):
-    build_agents_select()
-    if "agent_id" not in st.session_state:
+    build_agents_select("plugins")
+    if not (agent_id := st.session_state.get("agent_id")):
         return
 
-    agent_id = st.session_state.agent_id
     client = CheshireCatClient(build_client_configuration())
 
     # fetch the plugin
@@ -364,7 +360,7 @@ You have to activate the plugin before managing its settings.""")
     col1, col2, col3 = st.columns(3)
     # in any case, display a button to toggle / untoggle the plugin
     with col1:
-        if st.button(f"{'Untoggle' if is_plugin_active else 'Toggle'} Plugin", type="primary"):
+        if st.button(f"{'Untoggle' if is_plugin_active else 'Toggle'} Plugin"):
             spinner_container = show_overlay_spinner(f"{'Untoggling' if is_plugin_active else 'Toggling'} plugin...")
             try:
                 client.plugins.put_toggle_plugin(plugin_id, agent_id)
@@ -382,7 +378,7 @@ You have to activate the plugin before managing its settings.""")
             st.rerun()
 
     with col2:
-        if is_plugin_active and st.button("Reset Plugin", type="primary"):
+        if is_plugin_active and st.button("Reset Plugin"):
             spinner_container = show_overlay_spinner("Resetting the plugin to the factory status...")
             try:
                 client.plugins.post_plugin_reset_settings(plugin_id, agent_id)

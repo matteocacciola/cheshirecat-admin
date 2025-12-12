@@ -84,6 +84,6 @@ def edit_chunker(agent_id: str, chunker_name: str, is_selected: bool):
 def chunkers_management():
     st.title("Chunkers Management Dashboard")
 
-    build_agents_select()
+    build_agents_select("chunkers")
     if "agent_id" in st.session_state:
         list_chunkers(st.session_state.agent_id)

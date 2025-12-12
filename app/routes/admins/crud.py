@@ -87,13 +87,12 @@ def list_admins(skip: int = 0, limit: int = 100):
                 with col4:
                     if (
                             admin.username != "admin"
-                            and st.button("Delete", key=f"delete_{admin.id}", type="primary", help="Permanently delete this item")
+                            and st.button("Delete", key=f"delete_{admin.id}", help="Permanently delete this item")
                     ):
                         st.session_state["admin_to_delete"] = admin
 
             # Delete confirmation
-            if "admin_to_delete" in st.session_state:
-                admin = st.session_state["admin_to_delete"]
+            if admin := st.session_state.get("admin_to_delete"):
                 st.warning(f"⚠️ Are you sure you want to permanently delete admin `{admin.id}`?")
                 col1, col2 = st.columns(2)
                 with col1:

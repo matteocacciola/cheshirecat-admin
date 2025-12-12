@@ -2,7 +2,13 @@ import time
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
-from app.utils import build_agents_select, build_users_select, show_overlay_spinner, build_client_configuration
+from app.utils import (
+    build_agents_select,
+    build_client_configuration,
+    build_conversations_select,
+    build_users_select,
+    show_overlay_spinner,
+)
 
 
 def memory_collections(agent_id: str):
@@ -25,14 +31,13 @@ def memory_collections(agent_id: str):
                 st.write(f"Vectors count: {collection.vectors_count}")
 
             with col2:
-                if st.button("Delete", key=f"destroy_{collection.name}", type="primary", help="Permanently destroy this collection"):
+                if st.button("Delete", key=f"destroy_{collection.name}", help="Permanently destroy this collection"):
                     st.session_state["collection_to_delete"] = collection.name
 
             st.divider()
 
         # Destroy confirmation
-        if "collection_to_delete" in st.session_state:
-            collection = st.session_state["collection_to_delete"]
+        if collection := st.session_state.get("collection_to_delete"):
             st.warning(f"⚠️ Are you sure you want to permanently destroy collection `{collection}`?")
             col1, col2 = st.columns(2)
             with col1:
@@ -61,46 +66,46 @@ def memory_collections(agent_id: str):
         st.error(f"Error fetching memory collections: {e}")
 
 
-def view_conversation_history(agent_id: str, user_id: str):
+def view_conversation_history(agent_id: str, user_id: str, conversation_id: str):
     client = CheshireCatClient(build_client_configuration())
     st.header("Conversation History")
 
     try:
-        history = client.memory.get_conversation_history(agent_id, user_id)
+        history = client.conversation.get_conversation_history(agent_id, user_id, conversation_id)
 
         if not history.history:
-            st.info("No conversation history found for this user")
+            st.info("No conversation history found for this user and conversation")
             return
 
-        st.write("### Conversation History")
-        for item in history.history:
-            col1, col2 = st.columns([0.8, 0.2])
-
-            with col1:
+        col1, col2 = st.columns([0.8, 0.2])
+        with col1:
+            for item in history.history:
                 st.write(f"**{item.who}**: {item.content.text}")
                 if item.content.image:
                     st.image(item.image, caption="Image", use_column_width=True)
-                st.divider()
 
-            with col2:
-                if st.button("Delete", key=f"delete_{agent_id}_{user_id}"):
-                    st.session_state["history_to_delete"] = {"agent": agent_id, "user": user_id}
+        with col2:
+            if st.button("Delete", key=f"delete_{agent_id}_{user_id}_{conversation_id}"):
+                st.session_state["history_to_delete"] = {
+                    "agent": agent_id, "user": user_id, "conversation": conversation_id,
+                }
 
         # Delete confirmation
-        if "history_to_delete" in st.session_state:
-            history_ids = st.session_state["history_to_delete"]
+        if history_ids := st.session_state.get("history_to_delete"):
             agent_id = history_ids["agent"]
             user_id = history_ids["user"]
+            conversation_id = history_ids["conversation"]
+
             st.warning(f"⚠️ Are you sure you want to permanently delete this conversation history?")
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("Yes, Delete History", type="primary"):
                     try:
                         spinner_container = show_overlay_spinner(
-                            f"Deleting conversation history for Agent {agent_id}, User {user_id}..."
+                            f"Deleting conversation history {conversation_id} for Agent {agent_id}, User {user_id}..."
                         )
 
-                        result = client.memory.delete_conversation_history(agent_id, user_id)
+                        result = client.conversation.delete_conversation_history(agent_id, user_id, conversation_id)
                         if result.deleted:
                             st.toast(f"Conversation history deleted successfully!", icon="✅")
                             st.session_state.pop("history_to_delete", None)
@@ -125,16 +130,14 @@ def view_conversation_history(agent_id: str, user_id: str):
 def memory_management():
     st.title("Memory Management Dashboard")
 
-    build_agents_select()
-    if "agent_id" not in st.session_state:
+    build_agents_select("memory")
+    if not (agent_id := st.session_state.get("agent_id")):
         return
-
-    agent_id = st.session_state.agent_id
 
     # Navigation
     menu_options = {
         "(Select a menu)": None,
-        "List Collections": "list_collections",
+        "List Memory Collections": "list_collections",
         "View Conversation History": "view_conversation_history",
     }
     choice = st.selectbox("Menu", menu_options)
@@ -144,9 +147,12 @@ def memory_management():
         return
 
     if menu_options[choice] == "view_conversation_history":
-        build_users_select(agent_id)
-        if "user_id" not in st.session_state:
+        build_users_select("memory", agent_id)
+        if not (user_id := st.session_state.get("user_id")):
             return
 
-        user_id = st.session_state.user_id
-        view_conversation_history(agent_id, user_id)
+        build_conversations_select("memory", agent_id, user_id)
+        if not (conversation_id := st.session_state.get("conversation_id")):
+            return
+
+        view_conversation_history(agent_id, user_id, conversation_id)

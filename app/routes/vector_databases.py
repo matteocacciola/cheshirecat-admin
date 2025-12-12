@@ -87,6 +87,6 @@ def edit_vector_database(agent_id: str, vector_database_name: str, is_selected: 
 def vector_databases_management():
     st.title("Vector Databases Management Dashboard")
 
-    build_agents_select()
+    build_agents_select("vector_databases")
     if "agent_id" in st.session_state:
         list_vector_databases(st.session_state.agent_id)

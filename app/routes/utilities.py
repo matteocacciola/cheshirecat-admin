@@ -39,6 +39,11 @@ def factory_reset():
 
 
 def list_agents():
+    def pop_state_keys():
+        for key in ["agent_to_clone", "agent_to_reset", "agent_to_destroy", "new_agent_id_input"]:
+            if key in st.session_state:
+                st.session_state.pop(key, None)
+
     client = CheshireCatClient(build_client_configuration())
     st.header("Agent Management")
 
@@ -58,34 +63,33 @@ def list_agents():
                 if st.button(
                         "Clone",
                         key=f"clone_{agent}",
-                        type="primary",
                         help="Clone this agent and all associated data"
                 ):
+                    pop_state_keys()
                     st.session_state["agent_to_clone"] = agent
 
             with col3:
                 if st.button(
                         "Reset",
                         key=f"reset_{agent}",
-                        type="primary",
                         help="Reset this agent settings and memories"
                 ):
+                    pop_state_keys()
                     st.session_state["agent_to_reset"] = agent
 
             with col4:
                 if st.button(
                         "Destroy",
                         key=f"destroy_{agent}",
-                        type="primary",
                         help="Permanently destroy this agent and all associated data"
                 ):
+                    pop_state_keys()
                     st.session_state["agent_to_destroy"] = agent
 
             st.divider()
 
         # Clone confirmation
-        if "agent_to_clone" in st.session_state:
-            agent = st.session_state["agent_to_clone"]
+        if agent := st.session_state.get("agent_to_clone"):
             st.warning(f"⚠️ Are you sure you want to clone agent `{agent}`?")
 
             new_agent_id = st.text_input("New Agent ID", value=f"{agent}_clone", key="new_agent_id_input")
@@ -112,8 +116,7 @@ def list_agents():
                     st.rerun()
 
         # Reset confirmation
-        if "agent_to_reset" in st.session_state:
-            agent = st.session_state["agent_to_reset"]
+        if agent := st.session_state.get("agent_to_reset"):
             st.warning(f"⚠️ Are you sure you want to permanently reset agent `{agent}`?")
             col1, col2 = st.columns(2)
             with col1:
@@ -137,8 +140,7 @@ def list_agents():
                     st.rerun()
 
         # Destroy confirmation
-        if "agent_to_destroy" in st.session_state:
-            agent = st.session_state["agent_to_destroy"]
+        if agent := st.session_state.get("agent_to_destroy"):
             st.warning(f"⚠️ Are you sure you want to permanently destroy agent `{agent}`?")
             col1, col2 = st.columns(2)
             with col1:

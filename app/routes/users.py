@@ -86,15 +86,14 @@ def list_users(agent_id: str):
             with col4:
                 if (
                         user.username != "user"
-                        and st.button("Delete", key=f"delete_{user.id}", type="primary", help="Permanently delete this item")
+                        and st.button("Delete", key=f"delete_{user.id}", help="Permanently delete this item")
                 ):
                     st.session_state["user_to_delete"] = user
 
         # Delete confirmation
-        if "user_to_delete" not in st.session_state:
+        if not (user := st.session_state.get("user_to_delete")):
             return
 
-        user = st.session_state["user_to_delete"]
         st.warning(f"⚠️ Are you sure you want to permanently delete user `{user.id}`?")
         col1, col2 = st.columns(2)
         with col1:
@@ -193,12 +192,10 @@ def update_user(agent_id: str, user_id: str):
 def users_management():
     st.title("User Management Dashboard")
 
-    build_agents_select()
+    build_agents_select("users")
 
-    if "agent_id" not in st.session_state:
+    if not (agent_id := st.session_state.get("agent_id")):
         return
-
-    agent_id = st.session_state.agent_id
 
     # Sidebar navigation
     menu_options = ["List Users", "Create User"]

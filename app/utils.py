@@ -24,13 +24,13 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
     }
 
 
-def build_agents_select():
+def build_agents_select(k: str):
     client = CheshireCatClient(build_client_configuration())
     agents = client.utils.get_agents()
 
     # Sidebar navigation
     menu_options = {"(Select an Agent)": None} | {agent: slugify(agent) for agent in agents}
-    choice = st.selectbox("Agents", menu_options)
+    choice = st.selectbox("Agents", menu_options, key=f"agent_select_{k}")
     if menu_options[choice] is None:
         st.info("Please select an agent to manage.")
         st.session_state.pop("agent_id", None)
@@ -39,19 +39,42 @@ def build_agents_select():
     st.session_state["agent_id"] = choice
 
 
-def build_users_select(agent_id: str):
+def build_users_select(k: str, agent_id: str):
     client = CheshireCatClient(build_client_configuration())
     users = client.users.get_users(agent_id)
 
     # Navigation
     menu_options = {"(Select an User)": None} | {user.username: user.id for user in users}
-    choice = st.selectbox("Users", menu_options)
+    choice = st.selectbox("Users", menu_options, key=f"user_select_{k}")
     if menu_options[choice] is None:
         st.info("Please select an user to manage.")
         st.session_state.pop("user_id", None)
         return
 
     st.session_state["user_id"] = menu_options[choice]
+
+
+def build_conversations_select(k: str, agent_id: str, user_id: str):
+    client = CheshireCatClient(build_client_configuration())
+    conversations = client.conversation.get_conversation_histories(agent_id, user_id)
+
+    if not conversations:
+        st.info("No conversations found for this user.")
+        st.session_state.pop("conversation_id", None)
+        return
+
+    # Navigation
+    menu_options = (
+        {"(Select a Conversation)": None} |
+        {conversation_id: conversation_id for conversation_id in conversations.keys()}
+    )
+    choice = st.selectbox("Conversations", menu_options, key=f"agent_select_{k}")
+    if menu_options[choice] is None:
+        st.info("Please select a conversation to manage.")
+        st.session_state.pop("conversation_id", None)
+        return
+
+    st.session_state["conversation_id"] = menu_options[choice]
 
 
 def run_toast():

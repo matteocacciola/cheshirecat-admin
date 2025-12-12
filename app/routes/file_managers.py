@@ -90,6 +90,6 @@ def file_managers_management():
     st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
     please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the CheshireCat.""")
 
-    build_agents_select()
+    build_agents_select("file_managers")
     if "agent_id" in st.session_state:
         list_file_managers(st.session_state.agent_id)
