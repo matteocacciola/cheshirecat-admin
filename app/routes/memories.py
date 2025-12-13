@@ -67,6 +67,11 @@ def memory_collections(agent_id: str):
 
 
 def view_conversation_history(agent_id: str, user_id: str, conversation_id: str):
+    def pop_state_keys():
+        for key in ["conversation_to_change_name", "conversation_to_delete"]:
+            if key in st.session_state:
+                st.session_state.pop(key, None)
+
     client = CheshireCatClient(build_client_configuration())
     st.header("Conversation History")
 
@@ -77,7 +82,7 @@ def view_conversation_history(agent_id: str, user_id: str, conversation_id: str)
             st.info("No conversation history found for this user and conversation")
             return
 
-        col1, col2 = st.columns([0.8, 0.2])
+        col1, col2, col3 = st.columns([0.6, 0.2, 0.2])
         with col1:
             for item in history.history:
                 st.write(f"**{item.who}**: {item.content.text}")
@@ -86,16 +91,60 @@ def view_conversation_history(agent_id: str, user_id: str, conversation_id: str)
 
         with col2:
             if st.button("Delete", key=f"delete_{agent_id}_{user_id}_{conversation_id}"):
-                st.session_state["history_to_delete"] = {
-                    "agent": agent_id, "user": user_id, "conversation": conversation_id,
-                }
+                pop_state_keys()
+                st.session_state["conversation_to_delete"] = True
+
+        with col3:
+            if st.button(
+                    "Change the name",
+                    key=f"change_name_{agent_id}_{user_id}_{conversation_id}",
+                    help="Change the name of this conversation"
+            ):
+                pop_state_keys()
+                st.session_state["conversation_to_change_name"] = True
+
+        # Change Name confirmation
+        if st.session_state.get("conversation_to_change_name"):
+            new_conversation_name = st.text_input(
+                "New Conversation Name",
+                value=f"{conversation_id}_change_name",
+                key="new_conversation_name_input",
+            )
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Change the Name", type="primary"):
+                    try:
+                        with st.spinner(f"Changing the name of the conversation {conversation_id}..."):
+                            result = client.conversation.post_conversation_name(
+                                name=new_conversation_name,
+                                agent_id=agent_id,
+                                user_id=user_id,
+                                chat_id=conversation_id,
+                            )
+                        if result.changed:
+                            st.toast("Conversation name successfully changed!", icon="✅")
+                            st.session_state.pop("conversation_to_change_name", None)
+                            time.sleep(1)  # Wait for a moment before rerunning
+                            st.rerun()
+                        else:
+                            st.toast(
+                                f"Failed to change the name of the conversation {conversation_id}",
+                                icon="❌",
+                            )
+                    except Exception as e:
+                        st.toast(
+                            f"Error changing the name of the conversation {conversation_id}: {e}",
+                            icon="❌",
+                        )
+
+            with col2:
+                if st.button("Cancel"):
+                    st.session_state.pop("conversation_to_change_name", None)
+                    st.rerun()
 
         # Delete confirmation
-        if history_ids := st.session_state.get("history_to_delete"):
-            agent_id = history_ids["agent"]
-            user_id = history_ids["user"]
-            conversation_id = history_ids["conversation"]
-
+        if st.session_state.get("conversation_to_delete"):
             st.warning(f"⚠️ Are you sure you want to permanently delete this conversation history?")
             col1, col2 = st.columns(2)
             with col1:
@@ -105,10 +154,10 @@ def view_conversation_history(agent_id: str, user_id: str, conversation_id: str)
                             f"Deleting conversation history {conversation_id} for Agent {agent_id}, User {user_id}..."
                         )
 
-                        result = client.conversation.delete_conversation_history(agent_id, user_id, conversation_id)
+                        result = client.conversation.delete_conversation(agent_id, user_id, conversation_id)
                         if result.deleted:
                             st.toast(f"Conversation history deleted successfully!", icon="✅")
-                            st.session_state.pop("history_to_delete", None)
+                            st.session_state.pop("conversation_to_delete", None)
                             time.sleep(1)  # Wait for a moment before rerunning
                         else:
                             st.toast(f"Failed to delete conversation history", icon="❌")
@@ -120,7 +169,7 @@ def view_conversation_history(agent_id: str, user_id: str, conversation_id: str)
                     st.rerun()
             with col2:
                 if st.button("Cancel"):
-                    st.session_state.pop("history_to_delete", None)
+                    st.session_state.pop("conversation_to_delete", None)
                     st.rerun()
     except Exception as e:
         st.error(f"Error fetching conversation history: {e}")

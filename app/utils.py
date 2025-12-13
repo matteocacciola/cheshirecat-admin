@@ -56,7 +56,7 @@ def build_users_select(k: str, agent_id: str):
 
 def build_conversations_select(k: str, agent_id: str, user_id: str):
     client = CheshireCatClient(build_client_configuration())
-    conversations = client.conversation.get_conversation_histories(agent_id, user_id)
+    conversations = client.conversation.get_conversations(agent_id, user_id)
 
     if not conversations:
         st.info("No conversations found for this user.")
@@ -66,9 +66,9 @@ def build_conversations_select(k: str, agent_id: str, user_id: str):
     # Navigation
     menu_options = (
         {"(Select a Conversation)": None} |
-        {conversation_id: conversation_id for conversation_id in conversations.keys()}
+        {conversation.name: conversation.chat_id for conversation in conversations}
     )
-    choice = st.selectbox("Conversations", menu_options, key=f"agent_select_{k}")
+    choice = st.selectbox("Conversations", menu_options, key=f"conversation_select_{k}")
     if menu_options[choice] is None:
         st.info("Please select a conversation to manage.")
         st.session_state.pop("conversation_id", None)

@@ -1,5 +1,6 @@
 [server]
 fileWatcherType = "poll"
+enableXsrfProtection = true
 
 [runner]
 # Reduce memory usage if needed

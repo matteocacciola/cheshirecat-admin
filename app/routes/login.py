@@ -1,7 +1,9 @@
 import time
 import streamlit as st
+from streamlit_js_eval import set_cookie
 from cheshirecat_python_sdk import CheshireCatClient
 
+from app.env import get_env
 from app.utils import show_overlay_spinner, build_client_configuration
 
 
@@ -25,8 +27,11 @@ def login_page():
             client = CheshireCatClient(build_client_configuration())
             token_response = client.admins.token(username, password)
             token = token_response.access_token
+            exp_minutes = int(get_env("CHESHIRE_CAT_JWT_EXPIRE_MINUTES"))
 
             st.session_state["token"] = token
+            set_cookie("token", token, duration_days=exp_minutes / (60 * 24))
+
             st.toast("Login successful!", icon="✅")
 
             spinner_container.empty()
