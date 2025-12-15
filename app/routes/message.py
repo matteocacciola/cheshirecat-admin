@@ -18,6 +18,8 @@ def chat():
     if not (user_id := st.session_state.get("user_id")):
         return
 
+    st.session_state.chat_id = st.session_state.get("chat_id")
+
     st.session_state.messages = st.session_state.get("messages", [])
     if not st.session_state.messages and INTRO_MESSAGE:
         st.session_state.messages.append({
@@ -31,7 +33,7 @@ def chat():
     if user_message:
         try:
             response = client.message.send_http_message(
-                Message(text=user_message), agent_id=agent_id, user_id=user_id
+                Message(text=user_message), agent_id=agent_id, user_id=user_id, chat_id=st.session_state.chat_id,
             )
 
             st.session_state.messages.append({
@@ -41,8 +43,9 @@ def chat():
 
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": response.content,
+                "content": response.message.content,
             })
+            st.session_state.chat_id = response.chat_id
         except Exception as e:
             st.toast(f"Error sending message: {e}", icon="❌")
 
