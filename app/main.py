@@ -81,7 +81,7 @@ def check_and_display_status():
     current_status = st.session_state.get("status_connection", "Warning")
     try:
         client = CheshireCatClient(build_client_configuration())
-        client.health_check.home()
+        client.health_check.liveness()
         status_connection = "Online"
     except Exception as e:
         status_connection = "Offline"
