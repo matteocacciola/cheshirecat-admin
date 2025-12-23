@@ -25,7 +25,7 @@ def login_page():
         spinner_container = show_overlay_spinner(f"Authenticating {username}...")
         try:
             client = CheshireCatClient(build_client_configuration())
-            token_response = client.admins.token(username, password)
+            token_response = client.auth.token(username, password)
             token = token_response.access_token
             exp_minutes = int(get_env("CHESHIRE_CAT_JWT_EXPIRE_MINUTES"))
 

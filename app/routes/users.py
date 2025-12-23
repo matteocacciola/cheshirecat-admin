@@ -9,11 +9,11 @@ def create_user(agent_id: str):
     client = CheshireCatClient(build_client_configuration())
 
     # Initialize form key in session state if not present
-    if "admin_form_key" not in st.session_state:
-        st.session_state.admin_form_key = 0
+    if "user_form_key" not in st.session_state:
+        st.session_state.user_form_key = 0
 
     st.header("Create New User")
-    with st.form(f"create_user_form_{st.session_state.admin_form_key}", enter_to_submit=False):
+    with st.form(f"create_user_form_{st.session_state.user_form_key}", enter_to_submit=False):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
 
@@ -27,7 +27,7 @@ def create_user(agent_id: str):
             cols = st.columns(len(perms))
             permissions = []
             for i, perm in enumerate(perms):
-                is_checked = cols[i].checkbox(perm, key=f"{res}_{perm}_{st.session_state.admin_form_key}")
+                is_checked = cols[i].checkbox(perm, key=f"{res}_{perm}_{st.session_state.user_form_key}")
                 if is_checked:
                     permissions.append(perm)
             selected_permissions[res] = permissions
@@ -39,6 +39,10 @@ def create_user(agent_id: str):
             st.error("Username and password are required")
             return
 
+        if all(len(perms) == 0 for perms in selected_permissions.values()):
+            st.error("At least one permission must be selected")
+            return
+
         spinner_container = show_overlay_spinner("Creating user...")
         try:
             result = client.users.post_user(agent_id, username, password, selected_permissions)
@@ -46,7 +50,7 @@ def create_user(agent_id: str):
             time.sleep(1)
 
             # Increment form key to reset the form on next rerun
-            st.session_state.admin_form_key += 1
+            st.session_state.user_form_key += 1
             st.rerun()
         except Exception as e:
             st.toast(f"Error creating user: {e}", icon="❌")

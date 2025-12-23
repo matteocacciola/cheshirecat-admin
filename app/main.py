@@ -145,7 +145,6 @@ def render_sidebar_navigation():
             "📚 Knowledge Base": "rag",
         },
         "menu_users": {
-            "👥 Admins": "admins",
             "👥 Users": "users",
         },
         "menu_management": {
@@ -248,12 +247,6 @@ def main():
             st.session_state.pop("messages", None)
 
         chat()
-        return
-
-    if current_page == "admins":
-        from app.routes.admins.crud import admin_management
-
-        admin_management()
         return
 
     if current_page == "ai_models":
