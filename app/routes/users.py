@@ -20,7 +20,7 @@ def create_user(agent_id: str):
         # Permissions editor
         st.subheader("Permissions")
 
-        available_permissions = client.users.get_available_permissions()
+        available_permissions = client.auth.get_available_permissions()
         selected_permissions = {}
         for res, perms in available_permissions.items():
             st.write(f"**{res}**")
