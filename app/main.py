@@ -2,11 +2,11 @@ import time
 import streamlit as st
 from dotenv import load_dotenv
 from cheshirecat_python_sdk import CheshireCatClient
-from streamlit_js_eval import get_cookie, set_cookie
+from streamlit_js_eval import get_cookie
 
 from app.constants import CHECK_INTERVAL
 from app.env import get_env
-from app.utils import build_client_configuration
+from app.utils import build_client_configuration, clear_auth_cookies
 
 
 def apply_custom_css():
@@ -201,7 +201,7 @@ For security reasons, please consider creating admin users and logging in by cre
         st.session_state["token"] = None
         st.session_state["status_connection"] = "Warning"
 
-        set_cookie("token", "", duration_days=0)  # Immediate expiration
+        clear_auth_cookies()
         time.sleep(1)  # Wait for cookie to clear
 
         st.toast("Logged out successfully.", icon="🚪")

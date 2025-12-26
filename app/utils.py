@@ -4,6 +4,7 @@ from slugify import slugify
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient, Configuration
 from cheshirecat_python_sdk.models.api.factories import FactoryObjectSettingOutput
+from streamlit_js_eval import get_cookie, set_cookie
 
 from app.env import get_env, get_env_bool
 
@@ -192,3 +193,38 @@ def render_json_form(data: Dict, prefix: str = "") -> Dict:
             result[key] = create_input_field(key, value, path)
 
     return result
+
+
+def is_logged_by_credentials() -> bool:
+    """Check if the user is logged in by credentials."""
+    cookie_me = get_cookie("me")
+    return bool(cookie_me)
+
+
+def has_access(resource: str, required_role: str) -> bool:
+    """Check if the logged-in user has the required role."""
+    if not is_logged_by_credentials(): # logged by API key
+        return True
+
+    agent_id = st.session_state.get("agent_id")
+    if not agent_id:
+        return False
+
+    cookie_me = get_cookie("me")
+    try:
+        me = json.loads(cookie_me)
+        # in me.agents find the one with agent_id
+        agent_match = next((agent for agent in me.get("agents", []) if agent.get("agent_id") == agent_id), None)
+        if not agent_match:
+            return False
+
+        user_permissions = agent_match.get("user", {}).get("permissions", {}).get(resource, [])
+        return required_role in user_permissions
+    except json.JSONDecodeError:
+        return False
+
+
+def clear_auth_cookies():
+    """Clear authentication-related cookies."""
+    set_cookie("token", "", duration_days=-1)
+    set_cookie("me", "", duration_days=-1)

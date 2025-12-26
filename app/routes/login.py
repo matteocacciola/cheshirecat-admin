@@ -24,13 +24,19 @@ def login_page():
 
         spinner_container = show_overlay_spinner(f"Authenticating {username}...")
         try:
+            exp_minutes = int(get_env("CHESHIRE_CAT_JWT_EXPIRE_MINUTES"))
+            expiration = exp_minutes / (60 * 24)
+
             client = CheshireCatClient(build_client_configuration())
             token_response = client.auth.token(username, password)
             token = token_response.access_token
-            exp_minutes = int(get_env("CHESHIRE_CAT_JWT_EXPIRE_MINUTES"))
 
             st.session_state["token"] = token
-            set_cookie("token", token, duration_days=exp_minutes / (60 * 24))
+            set_cookie("token", token, duration_days=expiration)
+
+            # now, trigger /me endpoint to cache user info
+            res = client.auth.me(token)
+            set_cookie("me", res.model_dump(mode="json"), duration_days=expiration)
 
             st.toast("Login successful!", icon="✅")
 
