@@ -317,6 +317,8 @@ def manage_plugin(plugin_id: str):
 
     # if the plugin is installed, fetch its settings and display them in a form to be edited
     st.header(f"Manage Plugin: {plugin_id}")
+
+    plugin_settings = {}
     if is_plugin_active:
         try:
             if plugin_settings := get_factory_settings(
@@ -378,7 +380,7 @@ You have to activate the plugin before managing its settings.""")
             st.rerun()
 
     with col2:
-        if is_plugin_active and st.button("Reset Plugin"):
+        if is_plugin_active and plugin_settings and st.button("Reset Plugin"):
             spinner_container = show_overlay_spinner("Resetting the plugin to the factory status...")
             try:
                 client.plugins.post_plugin_reset_settings(plugin_id, agent_id)
