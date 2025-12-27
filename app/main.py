@@ -6,7 +6,7 @@ from streamlit_js_eval import get_cookie
 
 from app.constants import CHECK_INTERVAL
 from app.env import get_env
-from app.utils import build_client_configuration, clear_auth_cookies
+from app.utils import build_client_configuration, clear_auth_cookies, get_cookie_me, build_agents_select
 
 
 def apply_custom_css():
@@ -76,7 +76,7 @@ def apply_custom_css():
 
 
 @st.fragment(run_every=CHECK_INTERVAL)  # Run every 5 seconds
-def check_and_display_status():
+def check_status():
     """Check backend status and display it"""
     current_status = st.session_state.get("status_connection", "Warning")
     try:
@@ -93,49 +93,7 @@ def check_and_display_status():
 
 def render_sidebar_navigation():
     """Render the sidebar navigation menu"""
-    # Custom title with styling
-    st.sidebar.markdown("""
-    <div class="nav-title">
-        🐱 Cheshire Cat Admin
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Add a flag to track if we've attempted cookie check
-    st.session_state["token"] = st.session_state.get("token", get_env("CHESHIRE_CAT_API_KEY"))
-
-    if "initial_auth_check_done" not in st.session_state:
-        st.session_state["initial_auth_check_done"] = st.session_state["token"] is not None
-
-    # First time: check for cookie without blocking UI
-    if not st.session_state["initial_auth_check_done"]:
-        # Mark that we've started the check
-        st.session_state["initial_auth_check_done"] = True
-
-        # Try to get cookie (async - returns None initially)
-        cookie_token = get_cookie("token")
-
-        if cookie_token:
-            # If we get a token immediately (rare), use it
-            st.session_state["token"] = cookie_token
-        else:
-            # Most common case: cookie check is async
-            # Show loading state instead of login page
-            st.sidebar.info("🔍 Checking authentication...")
-            # Return a special page key to show loading in main area too
-            return "loading"
-
-    # Normal flow continues after initial check
-    if not st.session_state.get("token"):
-        cookie_token = get_cookie("token")  # Try again after async result
-
-        if cookie_token:
-            st.session_state["token"] = cookie_token
-            time.sleep(1)
-            st.rerun()  # Safe rerun now that we have token
-        else:
-            time.sleep(1)
-            st.sidebar.warning("Please log in to access the admin features.")
-            return "login"
+    st.session_state["selected_page"] = st.session_state.get("selected_page")
 
     # Navigation menu with icons
     navigation_options = {
@@ -164,8 +122,6 @@ def render_sidebar_navigation():
     # Create the navigation menu
     for menu_key, menu_items in navigation_options.items():
         for item_name, item_key in menu_items.items():
-            if "selected_page" not in st.session_state:
-                st.session_state["selected_page"] = None
             if st.sidebar.button(
                 item_name,
                 key=f"nav_{item_key}",
@@ -188,26 +144,6 @@ def render_sidebar_navigation():
     ### 📡 System Status: <span class="status-indicator status-{status_connection.lower()}"></span> {status_connection}
     """, unsafe_allow_html=True)
 
-    # Add separator
-    st.sidebar.divider()
-
-    if st.session_state.get("token") == get_env("CHESHIRE_CAT_API_KEY"):
-        st.sidebar.info("""You are logged in with the default API key.
-For security reasons, please consider creating admin users and logging in by credentials.""")
-        return st.session_state["selected_page"]
-
-    # logout button
-    if st.sidebar.button("Logout", type="primary", use_container_width=True):
-        st.session_state["token"] = None
-        st.session_state["status_connection"] = "Warning"
-
-        clear_auth_cookies()
-        time.sleep(1)  # Wait for cookie to clear
-
-        st.toast("Logged out successfully.", icon="🚪")
-
-        time.sleep(1)  # Wait for a moment before rerunning
-        st.rerun()
     return st.session_state["selected_page"]
 
 
@@ -216,29 +152,89 @@ def main():
     # Apply custom styling
     apply_custom_css()
 
-    check_and_display_status()
+    # Custom title with styling
+    st.sidebar.markdown("""
+<div class="nav-title">
+    🐱 Cheshire Cat Admin
+</div>
+""", unsafe_allow_html=True)
+
+    check_status()
+    if st.session_state["status_connection"] != "Online":
+        st.title("Welcome to the Cheshire Cat Admin UI 🐱")
+        st.error("Cheshire Cat backend is offline. Please check your connection.")
+        return
+
+    # Add a flag to track if we've attempted cookie check
+    st.session_state["token"] = st.session_state.get("token", get_env("CHESHIRE_CAT_API_KEY"))
+    st.session_state["initial_auth_check_done"] = st.session_state.get(
+        "initial_auth_check_done", st.session_state["token"] is not None,
+    )
+
+    if not st.session_state["token"]:
+        from app.routes.login import login_page
+
+        # First time: check for cookie without blocking UI
+        if not st.session_state["initial_auth_check_done"]:
+            # Mark that we've started the check
+            st.session_state["initial_auth_check_done"] = True
+
+            # Try to get cookie (async - returns None initially)
+            cookie_token = get_cookie("token")
+            if cookie_token:
+                # If we get a token immediately (rare), use it
+                st.session_state["token"] = cookie_token
+                time.sleep(1)
+                st.rerun()  # Safe rerun now that we have token
+
+            # Most common case: cookie check is async
+            # Show loading state instead of login page
+            st.sidebar.info("🔍 Checking authentication...")
+            # Return a special page key to show loading in main area too
+            st.title("Loading...")
+            st.info("Checking your authentication status. This will only take a moment.")
+            # Optionally add a spinner
+            with st.spinner("Checking for saved login..."):
+                time.sleep(0.5)  # Brief pause
+            return
+
+        # Normal flow continues after initial check
+        cookie_token = get_cookie("token")  # Try again after async result
+        if cookie_token:
+            st.session_state["token"] = cookie_token
+            st.rerun()
+
+        st.sidebar.warning("Please log in to access the admin features.")
+        time.sleep(1)
+        login_page()
+
+        return
+
+    cookie_me = get_cookie_me()
 
     # Render sidebar navigation and get selected page
     current_page = render_sidebar_navigation()
 
-    if st.session_state.get("status_connection", None) != "Online":
-        st.error("Cheshire Cat backend is offline. Please check your connection.")
-        return
+    if not cookie_me:
+        # Add separator
+        st.sidebar.divider()
 
-    # Handle loading state
-    if current_page == "loading":
-        st.title("Loading...")
-        st.info("Checking your authentication status. This will only take a moment.")
-        # Optionally add a spinner
-        with st.spinner("Checking for saved login..."):
-            time.sleep(0.5)  # Brief pause
-        return
+        st.sidebar.info("""You are logged in with the default API key.
+    For security reasons, please consider creating admin users and logging in by credentials.""")
+    else:
+        # logout button
+        logout_button = st.sidebar.button("Logout", type="primary", use_container_width=True)
+        if logout_button:
+            st.session_state["token"] = None
+            st.session_state["status_connection"] = "Warning"
 
-    if current_page == "login":
-        from app.routes.login import login_page
+            clear_auth_cookies()
+            time.sleep(1)  # Wait for cookie to clear
 
-        login_page()
-        return
+            st.toast("Logged out successfully.", icon="🚪")
+
+            time.sleep(1)  # Wait for a moment before rerunning
+            st.rerun()
 
     if current_page == "chat":
         from app.routes.message import chat
@@ -246,82 +242,82 @@ def main():
         if "messages" in st.session_state:
             st.session_state.pop("messages", None)
 
-        chat()
+        chat(cookie_me)
         return
 
     if current_page == "ai_models":
         from app.routes.llms import llms_management
 
-        llms_management()
+        llms_management(cookie_me)
         return
 
     if current_page == "auth_handlers":
         from app.routes.auth_handlers import auth_handlers_management
 
-        auth_handlers_management()
+        auth_handlers_management(cookie_me)
         return
 
     if current_page == "chunkers":
         from app.routes.chunkers import chunkers_management
 
-        chunkers_management()
+        chunkers_management(cookie_me)
         return
 
     if current_page == "embedders":
         from app.routes.embedders import embedders_management
 
-        embedders_management()
+        embedders_management(cookie_me)
         return
 
     if current_page == "file_handlers":
         from app.routes.file_managers import file_managers_management
 
-        file_managers_management()
+        file_managers_management(cookie_me)
         return
 
     if current_page == "rag":
         from app.routes.rabbit_hole import rabbit_hole_management
 
-        rabbit_hole_management()
+        rabbit_hole_management(cookie_me)
         return
 
     if current_page == "plugins":
         from app.routes.admins.plugins import admin_plugins_management
 
-        admin_plugins_management()
+        admin_plugins_management(cookie_me)
         return
 
     if current_page == "users":
         from app.routes.users import users_management
 
-        users_management()
+        users_management(cookie_me)
         return
 
     if current_page == "vector_databases":
         from app.routes.vector_databases import vector_databases_management
 
-        vector_databases_management()
+        vector_databases_management(cookie_me)
         return
 
     if current_page == "memory":
         from app.routes.memories import memory_management
 
-        memory_management()
+        memory_management(cookie_me)
         return
 
     if current_page == "system":
         from app.routes.utilities import utilities_management
 
-        utilities_management()
+        utilities_management(cookie_me)
         return
 
     # show a welcome message if no page is selected
     st.title("Welcome to the Cheshire Cat Admin UI 🐱")
-    st.markdown("""
-    Use the sidebar to navigate through different sections of the admin interface.
-    
-    Ensure that you are logged in to access all features.
-    """)
+    if not cookie_me:
+        st.markdown("Use the sidebar to navigate through different sections of the admin interface.")
+    else:
+        st.markdown("Select an agent from the dropdown below to get started.")
+        build_agents_select("main", cookie_me)
 
 
 # ----- Main application -----

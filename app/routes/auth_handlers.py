@@ -1,4 +1,5 @@
 import json
+from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -84,9 +85,9 @@ def edit_auth_handler(agent_id: str, handler_name: str, is_selected: bool):
         st.rerun()
 
 
-def auth_handlers_management():
+def auth_handlers_management(cookie_me: Dict | None):
     st.title("Authentication Handlers Management Dashboard")
 
-    build_agents_select("auth_handlers")
+    build_agents_select("auth_handlers", cookie_me)
     if "agent_id" in st.session_state:
-        list_auth_handlers(st.session_state.agent_id)
+        list_auth_handlers(st.session_state["agent_id"])

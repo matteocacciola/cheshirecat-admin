@@ -1,4 +1,5 @@
 import json
+from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -84,9 +85,9 @@ def edit_llm(agent_id: str, llm_name: str, is_selected: bool):
         st.rerun()
 
 
-def llms_management():
+def llms_management(cookie_me: Dict | None):
     st.title("LLMs Management Dashboard")
 
-    build_agents_select("llms")
+    build_agents_select("llms", cookie_me)
     if "agent_id" in st.session_state:
-        list_llms(st.session_state.agent_id)
+        list_llms(st.session_state["agent_id"])

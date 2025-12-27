@@ -1,4 +1,5 @@
 import time
+from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -9,11 +10,10 @@ def create_user(agent_id: str):
     client = CheshireCatClient(build_client_configuration())
 
     # Initialize form key in session state if not present
-    if "user_form_key" not in st.session_state:
-        st.session_state.user_form_key = 0
+    st.session_state["user_form_key"] = st.session_state.get("user_form_key", 0)
 
     st.header("Create New User")
-    with st.form(f"create_user_form_{st.session_state.user_form_key}", enter_to_submit=False):
+    with st.form(f"create_user_form_{st.session_state['user_form_key']}", enter_to_submit=False):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
 
@@ -27,10 +27,12 @@ def create_user(agent_id: str):
             cols = st.columns(len(perms))
             permissions = []
             for i, perm in enumerate(perms):
-                is_checked = cols[i].checkbox(perm, key=f"{res}_{perm}_{st.session_state.user_form_key}")
+                is_checked = cols[i].checkbox(perm, key=f"{res}_{perm}_{st.session_state['user_form_key']}")
                 if is_checked:
                     permissions.append(perm)
             selected_permissions[res] = permissions
+
+            st.divider()
 
         if not st.form_submit_button("Create User"):
             return
@@ -50,7 +52,7 @@ def create_user(agent_id: str):
             time.sleep(1)
 
             # Increment form key to reset the form on next rerun
-            st.session_state.user_form_key += 1
+            st.session_state["user_form_key"] += 1
             st.rerun()
         except Exception as e:
             st.toast(f"Error creating user: {e}", icon="❌")
@@ -150,8 +152,9 @@ def update_user(agent_id: str, user_id: str):
 
         # Permissions editor
         st.subheader("Permissions")
+
         current_permissions = user_data.permissions
-        available_permissions = client.users.get_available_permissions()
+        available_permissions = client.auth.get_available_permissions()
 
         selected_permissions = {}
         for res, perms in available_permissions.items():
@@ -164,7 +167,7 @@ def update_user(agent_id: str, user_id: str):
                     permissions.append(perm)
             selected_permissions[res] = permissions
 
-        st.divider()
+            st.divider()
 
         if not st.form_submit_button("Update User"):
             return
@@ -193,10 +196,10 @@ def update_user(agent_id: str, user_id: str):
 
 
 # Streamlit UI
-def users_management():
+def users_management(cookie_me: Dict | None):
     st.title("User Management Dashboard")
 
-    build_agents_select("users")
+    build_agents_select("users", cookie_me)
 
     if not (agent_id := st.session_state.get("agent_id")):
         return

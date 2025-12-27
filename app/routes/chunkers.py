@@ -1,4 +1,5 @@
 import json
+from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -81,9 +82,9 @@ def edit_chunker(agent_id: str, chunker_name: str, is_selected: bool):
         st.rerun()
 
 
-def chunkers_management():
+def chunkers_management(cookie_me: Dict | None):
     st.title("Chunkers Management Dashboard")
 
-    build_agents_select("chunkers")
+    build_agents_select("chunkers", cookie_me)
     if "agent_id" in st.session_state:
-        list_chunkers(st.session_state.agent_id)
+        list_chunkers(st.session_state["agent_id"])

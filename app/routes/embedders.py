@@ -1,4 +1,5 @@
 import json
+from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -82,7 +83,7 @@ def edit_embedder(embedder_name: str, is_selected: bool):
         st.rerun()
 
 
-def embedders_management():
+def embedders_management(cookie_me: Dict | None):
     st.title("Embedders Management Dashboard")
 
     list_embedders()

@@ -2,10 +2,11 @@ import os
 import tempfile
 import json
 import time
-
+from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
+from app.constants import ASSETS_PATH
 from app.utils import (
     get_factory_settings,
     build_agents_select,
@@ -13,13 +14,14 @@ from app.utils import (
     show_overlay_spinner,
     build_client_configuration,
     render_json_form,
+    image_to_base64,
 )
 
 # Pagination settings
 ITEMS_PER_PAGE = 10
 
 
-def render_pagination_controls(section_key, current_page, total_pages):
+def render_pagination_controls(section_key: str, current_page: int, total_pages: int):
     """Render pagination controls for a section."""
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
@@ -54,7 +56,7 @@ def render_pagination_controls(section_key, current_page, total_pages):
             st.rerun()
 
 
-def paginate_items(items, section_key, items_per_page):
+def paginate_items(items: list, section_key: str, items_per_page: int):
     """Paginate a list of items and return the current page items."""
     # Initialize session state for pagination
     if f"{section_key}_page" not in st.session_state:
@@ -72,17 +74,21 @@ def paginate_items(items, section_key, items_per_page):
     return paginated_items, current_page, total_pages
 
 
-def render_installed_plugin(p, core_plugins_ids, client):
+def render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCatClient, cookie_me: Dict | None):
     """Render a single installed plugin row."""
     col0, col1, col2, col3, col4 = st.columns([0.05, 0.63, 0.1, 0.12, 0.1])
 
     with col0:
-        if p.thumb:
-            st.markdown(
-                f'<img src="{p.thumb}" alt="" style="width: 100%; margin-bottom: 1em;" />',
-                unsafe_allow_html=True
-            )
-            # st.image(p.thumb, width="stretch")
+        img = (
+            p.thumb
+            if p.thumb
+            else f"data:image/png;base64,{image_to_base64(os.path.join(ASSETS_PATH, 'placeholder_plugin.png'))}"
+        )
+        st.markdown(
+            f'<img src="{img}" alt="" style="width: 100%; margin-bottom: 2em;" />',
+            unsafe_allow_html=True
+        )
+        # st.image(img, width="stretch")
 
     with col1:
         with st.expander(f"Plugin: {p.name} (ID: {p.id})", icon="🔌"):
@@ -119,22 +125,26 @@ def render_installed_plugin(p, core_plugins_ids, client):
 
     with col4:
         if p.id != "base_plugin" and p.local_info["active"] and st.button("Manage", key=f"manage_{p.id}"):
-            manage_plugin(p.id)
+            manage_plugin(p.id, cookie_me)
 
 
-def render_registry_plugin(registry_plugin, client):
+def render_registry_plugin(registry_plugin, client: CheshireCatClient):
     """Render a single registry plugin row."""
     plugin_url = registry_plugin.id
 
     col0, col1, col2 = st.columns([0.05, 0.65, 0.3])
 
     with col0:
-        if registry_plugin.thumb:
-            st.markdown(
-                f'<img src="{registry_plugin.thumb}" alt="" style="width: 100%; margin-bottom: 1em;" />',
-                unsafe_allow_html=True
-            )
-            # st.image(registry_plugin.thumb, width="stretch")
+        img = (
+            registry_plugin.thumb
+            if registry_plugin.thumb
+            else f"data:image/png;base64,{image_to_base64(os.path.join(ASSETS_PATH, 'placeholder_plugin.png'))}"
+        )
+        st.markdown(
+            f'<img src="{img}" alt="" style="width: 100%; margin-bottom: 2em;" />',
+            unsafe_allow_html=True
+        )
+        # st.image(img, width="stretch")
 
     with col1:
         with st.expander(f"Plugin: {registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
@@ -157,7 +167,7 @@ def render_registry_plugin(registry_plugin, client):
             st.rerun()
 
 
-def render_uninstall_confirmation(client):
+def render_uninstall_confirmation(client: CheshireCatClient):
     """Render the uninstall confirmation dialog."""
     if not (plugin := st.session_state.get("plugin_to_uninstall")):
         return
@@ -184,7 +194,7 @@ def render_uninstall_confirmation(client):
             st.rerun()
 
 
-def list_plugins():
+def list_plugins(cookie_me: Dict | None):
     run_toast()
 
     client = CheshireCatClient(build_client_configuration())
@@ -212,7 +222,7 @@ def list_plugins():
 
             # Display paginated installed plugins
             for p in paginated_installed:
-                render_installed_plugin(p, core_plugins_ids, client)
+                render_installed_plugin(p, core_plugins_ids, client, cookie_me)
 
             # Pagination controls for installed plugins
             if total_pages > 1:
@@ -299,8 +309,8 @@ def view_plugin_details(plugin_id: str):
 
 
 @st.dialog(title="Manage Plugin", width="large")
-def manage_plugin(plugin_id: str):
-    build_agents_select("plugins")
+def manage_plugin(plugin_id: str, cookie_me: Dict | None):
+    build_agents_select("plugins", cookie_me)
     if not (agent_id := st.session_state.get("agent_id")):
         return
 
@@ -452,7 +462,7 @@ def view_plugin_settings():
         st.error(f"Error fetching plugin settings: {e}")
 
 
-def admin_plugins_management():
+def admin_plugins_management(cookie_me: Dict | None):
     st.title("Plugins Management Dashboard")
 
     # Navigation
@@ -464,7 +474,7 @@ def admin_plugins_management():
     choice = st.selectbox("Menu", menu_options)
 
     if menu_options[choice] == "browse_plugins":
-        list_plugins()
+        list_plugins(cookie_me)
         return
     if menu_options[choice] == "install_from_file":
         install_plugin_from_file()

@@ -1,6 +1,7 @@
 import os
 import tempfile
 import time
+from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 import json
@@ -11,7 +12,7 @@ from app.utils import build_agents_select, show_overlay_spinner, build_client_co
 
 def upload_files(agent_id: str):
     def add_file_pair():
-        st.session_state.file_metadata_pairs.append({"file": None, "metadata": "{}"})
+        st.session_state["file_metadata_pairs"].append({"file": None, "metadata": "{}"})
 
     client = CheshireCatClient(build_client_configuration())
     st.header("Upload Files")
@@ -19,10 +20,10 @@ def upload_files(agent_id: str):
     allowed_file_types = client.rabbit_hole.get_allowed_mime_types(agent_id)
     st.markdown(f"""**Allowed file types**: {', '.join(allowed_file_types.allowed)}""")
 
-    if "file_metadata_pairs" not in st.session_state:
-        st.session_state.file_metadata_pairs = [{"file": None, "metadata": "{}"}]
-    if "remove_index" not in st.session_state:
-        st.session_state.remove_index = None
+    st.session_state["file_metadata_pairs"] = st.session_state.get(
+        "file_metadata_pairs", [{"file": None, "metadata": "{}"}],
+    )
+    st.session_state["remove_index"] = st.session_state.get("remove_index")
 
     #  Add file button outside the form
     cols = st.columns([4, 1])
@@ -33,14 +34,14 @@ def upload_files(agent_id: str):
             add_file_pair()
             st.rerun()  # Refresh to show the new file input
 
-    if st.session_state.remove_index is not None:
-        del st.session_state.file_metadata_pairs[st.session_state.remove_index]
-        st.session_state.remove_index = None
+    if st.session_state["remove_index"] is not None:
+        del st.session_state["file_metadata_pairs"][st.session_state["remove_index"]]
+        st.session_state["remove_index"] = None
         st.rerun()
 
     with st.form("upload_files_form", clear_on_submit=True, enter_to_submit=False):
         # Display each file-metadata pair
-        for i, pair in enumerate(st.session_state.file_metadata_pairs):
+        for i, pair in enumerate(st.session_state["file_metadata_pairs"]):
             col1, col2, col3 = st.columns([1, 1, 0.5])
             with col1:
                 pair["file"] = st.file_uploader(f"File {i + 1}", key=f"file_{i}")
@@ -53,9 +54,9 @@ def upload_files(agent_id: str):
                     help="Enter metadata as JSON for this specific file"
                 )
             with col3:
-                if len(st.session_state.file_metadata_pairs) > 1:
+                if len(st.session_state["file_metadata_pairs"]) > 1:
                     if st.form_submit_button(f"❌ Remove this file (#{i+1})", help="Check to remove this file from the upload list"):
-                        st.session_state.remove_index = i
+                        st.session_state["remove_index"] = i
                         st.rerun()
 
         if not st.form_submit_button("📤 Upload Files"):
@@ -66,7 +67,7 @@ def upload_files(agent_id: str):
         has_errors = False
         temp_files = []  # Keep track of temporary files for cleanup
 
-        for i, pair in enumerate(st.session_state.file_metadata_pairs):
+        for i, pair in enumerate(st.session_state["file_metadata_pairs"]):
             if not pair["file"]:
                 st.error(f"Please select a file for File {i + 1}")
                 has_errors = True
@@ -106,7 +107,7 @@ def upload_files(agent_id: str):
             )
             st.toast(f"Successfully uploaded {len(file_paths)} files!", icon="✅")
             # Clear the files after successful upload
-            st.session_state.file_metadata_pairs = [{"file": None, "metadata": "{}"}]
+            st.session_state["file_metadata_pairs"] = [{"file": None, "metadata": "{}"}]
         except Exception as e:
             st.toast(f"Error uploading files: {e}", icon="❌")
         finally:
@@ -244,13 +245,13 @@ def list_files(agent_id: str):
         st.toast(f"Error fetching files: {e}", icon="❌")
 
 
-def rabbit_hole_management():
+def rabbit_hole_management(cookie_me: Dict | None):
     st.title("Knowledge Base Management")
 
     st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
     please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the CheshireCat.""")
 
-    build_agents_select("rabbit_hole")
+    build_agents_select("rabbit_hole", cookie_me)
     if not (agent_id := st.session_state.get("agent_id")):
         return
 

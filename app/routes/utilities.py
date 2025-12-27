@@ -1,4 +1,6 @@
 import time
+from typing import Dict
+
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -193,7 +195,7 @@ def create_agent():
             spinner_container.empty()
 
 
-def utilities_management():
+def utilities_management(cookie_me: Dict | None):
     st.title("System Management Dashboard")
 
     # Navigation

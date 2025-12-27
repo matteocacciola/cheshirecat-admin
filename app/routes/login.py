@@ -1,3 +1,4 @@
+import json
 import time
 import streamlit as st
 from streamlit_js_eval import set_cookie
@@ -36,7 +37,7 @@ def login_page():
 
             # now, trigger /me endpoint to cache user info
             res = client.auth.me(token)
-            set_cookie("me", res.model_dump(mode="json"), duration_days=expiration)
+            set_cookie("me", json.dumps(res.model_dump()), duration_days=expiration)
 
             st.toast("Login successful!", icon="✅")
 

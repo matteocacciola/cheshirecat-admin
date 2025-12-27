@@ -1,4 +1,6 @@
+import base64
 import json
+import os.path
 from typing import Dict, Any
 from slugify import slugify
 import streamlit as st
@@ -7,6 +9,20 @@ from cheshirecat_python_sdk.models.api.factories import FactoryObjectSettingOutp
 from streamlit_js_eval import get_cookie, set_cookie
 
 from app.env import get_env, get_env_bool
+
+
+def get_cookie_me() -> Dict | None:
+    """Check if the user is logged in by credentials."""
+    cookie_me = get_cookie("me")
+    if not cookie_me:
+        return None
+
+    try:
+        me = json.loads(cookie_me)
+        return me
+    except json.JSONDecodeError as e:
+        print(f"Error decoding 'me' cookie: {e}")
+        return None
 
 
 def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool) -> Dict[str, Any]:
@@ -25,9 +41,12 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
     }
 
 
-def build_agents_select(k: str):
-    client = CheshireCatClient(build_client_configuration())
-    agents = client.utils.get_agents()
+def build_agents_select(k: str, cookie_me: Dict | None):
+    if cookie_me:  # login by credentials
+        agents = [agent["name"] for agent in cookie_me.get("agents", [])]
+    else:
+        client = CheshireCatClient(build_client_configuration())
+        agents = client.utils.get_agents()
 
     # Sidebar navigation
     menu_options = {"(Select an Agent)": None} | {agent: slugify(agent) for agent in agents}
@@ -195,26 +214,18 @@ def render_json_form(data: Dict, prefix: str = "") -> Dict:
     return result
 
 
-def is_logged_by_credentials() -> bool:
-    """Check if the user is logged in by credentials."""
-    cookie_me = get_cookie("me")
-    return bool(cookie_me)
-
-
-def has_access(resource: str, required_role: str) -> bool:
+def has_access(resource: str, required_role: str, cookie_me: Dict | None) -> bool:
     """Check if the logged-in user has the required role."""
-    if not is_logged_by_credentials(): # logged by API key
+    if not cookie_me: # logged by API key
         return True
 
     agent_id = st.session_state.get("agent_id")
     if not agent_id:
         return False
 
-    cookie_me = get_cookie("me")
     try:
-        me = json.loads(cookie_me)
-        # in me.agents find the one with agent_id
-        agent_match = next((agent for agent in me.get("agents", []) if agent.get("agent_id") == agent_id), None)
+        # in cookie_me.agents find the one with agent_id
+        agent_match = next((agent for agent in cookie_me.get("agents", []) if agent.get("agent_id") == agent_id), None)
         if not agent_match:
             return False
 
@@ -228,3 +239,13 @@ def clear_auth_cookies():
     """Clear authentication-related cookies."""
     set_cookie("token", "", duration_days=-1)
     set_cookie("me", "", duration_days=-1)
+
+
+def image_to_base64(img_path: str) -> str:
+    """Convert an image file to a base64 string."""
+    if not os.path.exists(img_path) or not os.path.isfile(img_path):
+        raise FileNotFoundError(f"Image file not found: {img_path}")
+
+    with open(img_path, "rb") as img_file:
+        b64_string = base64.b64encode(img_file.read()).decode("utf-8")
+    return b64_string

@@ -1,4 +1,5 @@
 import json
+from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -84,12 +85,12 @@ def edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool):
         st.rerun()
 
 
-def file_managers_management():
+def file_managers_management(cookie_me: Dict | None):
     st.title("File Managers Management Dashboard")
 
     st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
     please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the CheshireCat.""")
 
-    build_agents_select("file_managers")
+    build_agents_select("file_managers", cookie_me)
     if "agent_id" in st.session_state:
-        list_file_managers(st.session_state.agent_id)
+        list_file_managers(st.session_state["agent_id"])

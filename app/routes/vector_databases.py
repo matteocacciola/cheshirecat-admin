@@ -1,4 +1,5 @@
 import json
+from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -84,9 +85,9 @@ def edit_vector_database(agent_id: str, vector_database_name: str, is_selected: 
         st.rerun()
 
 
-def vector_databases_management():
+def vector_databases_management(cookie_me: Dict | None):
     st.title("Vector Databases Management Dashboard")
 
-    build_agents_select("vector_databases")
+    build_agents_select("vector_databases", cookie_me)
     if "agent_id" in st.session_state:
-        list_vector_databases(st.session_state.agent_id)
+        list_vector_databases(st.session_state["agent_id"])

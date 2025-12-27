@@ -1,4 +1,5 @@
 import time
+from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
@@ -176,10 +177,10 @@ def view_conversation_history(agent_id: str, user_id: str, conversation_id: str)
 
 
 # Streamlit UI
-def memory_management():
+def memory_management(cookie_me: Dict | None):
     st.title("Memory Management Dashboard")
 
-    build_agents_select("memory")
+    build_agents_select("memory", cookie_me)
     if not (agent_id := st.session_state.get("agent_id")):
         return
 
