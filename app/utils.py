@@ -43,7 +43,7 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
 
 def build_agents_select(k: str, cookie_me: Dict | None):
     if cookie_me:  # login by credentials
-        agents = [agent["name"] for agent in cookie_me.get("agents", [])]
+        agents = [agent["agent_name"] for agent in cookie_me.get("agents", [])]
     else:
         client = CheshireCatClient(build_client_configuration())
         agents = client.utils.get_agents()
