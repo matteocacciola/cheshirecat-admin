@@ -1,4 +1,5 @@
 import time
+from typing import Dict
 import streamlit as st
 from dotenv import load_dotenv
 from cheshirecat_python_sdk import CheshireCatClient
@@ -6,7 +7,7 @@ from streamlit_js_eval import get_cookie
 
 from app.constants import CHECK_INTERVAL
 from app.env import get_env
-from app.utils import build_client_configuration, clear_auth_cookies, get_cookie_me, build_agents_select
+from app.utils import build_client_configuration, clear_auth_cookies, get_cookie_me, build_agents_select, has_access
 
 
 def apply_custom_css():
@@ -91,48 +92,84 @@ def check_status():
         st.rerun()
 
 
-def render_sidebar_navigation():
+def render_sidebar_navigation(cookie_me: Dict | None):
     """Render the sidebar navigation menu"""
     st.session_state["selected_page"] = st.session_state.get("selected_page")
 
     # Navigation menu with icons
     navigation_options = {
         "menu_chat": {
-            "💬 Chat": "chat",
-            "🗂️ Memory & Chats": "memory",
-            "📚 Knowledge Base": "rag",
+            "💬 Chat": {
+                "page": "chat",
+                "resource": "CHAT",
+            },
+            "🗂️ Memory & Chats": {
+                "page": "memory",
+                "resource": "MEMORY",
+            },
+            "📚 Knowledge Base": {
+                "page": "rag",
+                "resource": "UPLOAD",
+            },
         },
         "menu_users": {
-            "👥 Users": "users",
+            "👥 Users": {
+                "page": "users",
+                "resource": "USERS",
+            },
         },
         "menu_management": {
-            "🔌 Plugins": "plugins",
-            "🧬 AI Models": "ai_models",
-            "🔐 Authentication Handlers": "auth_handlers",
-            "🔪 Chunkers": "chunkers",
-            "🧠 Embedders": "embedders",
-            "📁 File Handlers": "file_handlers",
-            "🔗 Vector Databases": "vector_databases",
+            "🔌 Plugins": {
+                "page": "plugins",
+                "resource": "PLUGIN",
+            },
+            "🧬 AI Models": {
+                "page": "ai_models",
+                "resource": "LLM",
+            },
+            "🔐 Authentication Handlers": {
+                "page": "auth_handlers",
+                "resource": "AUTH_HANDLER",
+            },
+            "🔪 Chunkers": {
+                "page": "chunkers",
+                "resource": "CHUNKER",
+            },
+            "🧠 Embedders": {
+                "page": "embedders",
+                "resource": "EMBEDDER",
+            },
+            "📁 File Handlers": {
+                "page": "file_handlers",
+                "resource": "FILE_MANAGER",
+            },
+            "🔗 Vector Databases": {
+                "page": "vector_databases",
+                "resource": "VECTOR_DATABASE",
+            }
         },
         "menu_system": {
-            "⚙️ System": "system",
-        }
+            "⚙️ System": {
+                "page": "system",
+                "resource": "CHESHIRE_CAT",
+            },
+        },
     }
 
     # Create the navigation menu
     for menu_key, menu_items in navigation_options.items():
-        for item_name, item_key in menu_items.items():
-            if st.sidebar.button(
+        for item_name, item_keys in menu_items.items():
+            if has_access(item_keys["resource"], None, cookie_me) and st.sidebar.button(
                 item_name,
-                key=f"nav_{item_key}",
+                key=f"nav_{item_keys['page']}",
                 type="secondary",
                 use_container_width=True,
                 disabled=(
                         st.session_state.get("status_connection", None) != "Online"
-                        or st.session_state["selected_page"] == item_key
+                        or st.session_state["selected_page"] == item_keys["page"]
                 ),
             ):
-                st.session_state["selected_page"] = item_key
+                st.session_state["selected_page"] = item_keys["page"]
                 st.rerun()  # Force immediate rerun
 
         # Add separator
@@ -213,7 +250,7 @@ def main():
     cookie_me = get_cookie_me()
 
     # Render sidebar navigation and get selected page
-    current_page = render_sidebar_navigation()
+    current_page = render_sidebar_navigation(cookie_me)
 
     if not cookie_me:
         # Add separator

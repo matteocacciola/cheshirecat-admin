@@ -214,7 +214,7 @@ def render_json_form(data: Dict, prefix: str = "") -> Dict:
     return result
 
 
-def has_access(resource: str, required_role: str, cookie_me: Dict | None) -> bool:
+def has_access(resource: str, required_role: str | None, cookie_me: Dict | None) -> bool:
     """Check if the logged-in user has the required role."""
     if not cookie_me: # logged by API key
         return True
@@ -230,7 +230,7 @@ def has_access(resource: str, required_role: str, cookie_me: Dict | None) -> boo
             return False
 
         user_permissions = agent_match.get("user", {}).get("permissions", {}).get(resource, [])
-        return required_role in user_permissions
+        return required_role in user_permissions if required_role else len(user_permissions) > 0
     except json.JSONDecodeError:
         return False
 
