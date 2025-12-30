@@ -45,7 +45,7 @@ def chat(cookie_me: Dict | None):
 
             st.session_state["messages"].append({
                 "role": "assistant",
-                "content": response.message.content,
+                "content": response.message.text,
             })
             st.session_state["chat_id"] = response.chat_id
         except Exception as e:
