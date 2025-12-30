@@ -101,57 +101,57 @@ def render_sidebar_navigation(cookie_me: Dict | None):
         "menu_chat": {
             "💬 Chat": {
                 "page": "chat",
-                "resource": "CHAT",
+                "allowed": has_access("CHAT", None, cookie_me),
             },
             "🗂️ Memory & Chats": {
                 "page": "memory",
-                "resource": "MEMORY",
+                "allowed": has_access("MEMORY", None, cookie_me),
             },
             "📚 Knowledge Base": {
                 "page": "rag",
-                "resource": "UPLOAD",
+                "allowed": has_access("UPLOAD", None, cookie_me),
             },
         },
         "menu_users": {
             "👥 Users": {
                 "page": "users",
-                "resource": "USERS",
+                "allowed": has_access("USERS", None, cookie_me),
             },
         },
         "menu_management": {
             "🔌 Plugins": {
                 "page": "plugins",
-                "resource": "PLUGIN",
+                "allowed": has_access("PLUGIN", None, cookie_me),
             },
             "🧬 AI Models": {
                 "page": "ai_models",
-                "resource": "LLM",
+                "allowed": has_access("LLM", None, cookie_me),
             },
             "🔐 Authentication Handlers": {
                 "page": "auth_handlers",
-                "resource": "AUTH_HANDLER",
+                "allowed": has_access("AUTH_HANDLER", None, cookie_me),
             },
             "🔪 Chunkers": {
                 "page": "chunkers",
-                "resource": "CHUNKER",
+                "allowed": has_access("CHUNKER", None, cookie_me),
             },
             "🧠 Embedders": {
                 "page": "embedders",
-                "resource": "EMBEDDER",
+                "allowed": has_access("EMBEDDER", None, cookie_me),
             },
             "📁 File Handlers": {
                 "page": "file_handlers",
-                "resource": "FILE_MANAGER",
+                "allowed": has_access("FILE_MANAGER", None, cookie_me),
             },
             "🔗 Vector Databases": {
                 "page": "vector_databases",
-                "resource": "VECTOR_DATABASE",
+                "allowed": has_access("VECTOR_DATABASE", None, cookie_me),
             }
         },
         "menu_system": {
             "⚙️ System": {
                 "page": "system",
-                "resource": "CHESHIRE_CAT",
+                "allowed": has_access("CHESHIRE_CAT", None, cookie_me),
             },
         },
     }
@@ -159,7 +159,7 @@ def render_sidebar_navigation(cookie_me: Dict | None):
     # Create the navigation menu
     for menu_key, menu_items in navigation_options.items():
         for item_name, item_keys in menu_items.items():
-            if has_access(item_keys["resource"], None, cookie_me) and st.sidebar.button(
+            if item_keys["allowed"] and st.sidebar.button(
                 item_name,
                 key=f"nav_{item_keys['page']}",
                 type="secondary",
@@ -172,8 +172,9 @@ def render_sidebar_navigation(cookie_me: Dict | None):
                 st.session_state["selected_page"] = item_keys["page"]
                 st.rerun()  # Force immediate rerun
 
-        # Add separator
-        st.sidebar.divider()
+        if any(item["allowed"] for item in menu_items.values()):
+            # Add separator
+            st.sidebar.divider()
 
     # System status section
     status_connection = st.session_state.get("status_connection", "Warning")
@@ -355,6 +356,10 @@ def main():
     else:
         st.markdown("Select an agent from the dropdown below to get started.")
         build_agents_select("main", cookie_me)
+
+        # Trigger reload when agent is selected
+        if st.session_state.get("agent_id"):
+            st.rerun()
 
 
 # ----- Main application -----
