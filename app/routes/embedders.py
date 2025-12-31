@@ -9,11 +9,16 @@ from app.utils import (
     show_overlay_spinner,
     build_client_configuration,
     render_json_form,
+    has_access,
 )
 
 
-def list_embedders():
+def list_embedders(cookie_me: Dict | None):
     run_toast()
+
+    if not has_access("EMBEDDER", "LIST", cookie_me):
+        st.error("You do not have access to view embedders.")
+        return
 
     client = CheshireCatClient(build_client_configuration())
     st.header("Embedders")
@@ -38,14 +43,21 @@ def list_embedders():
                     st.write('<div class="picked">✅</div>', unsafe_allow_html=True)
 
             with col3:
-                if st.button("Edit" if is_selected else "Select", key=f"edit_{embedder.name}"):
-                    edit_embedder(embedder.name, is_selected)
+                if has_access("EMBEDDER", "WRITE", cookie_me):
+                    if st.button("Edit" if is_selected else "Select", key=f"edit_{embedder.name}"):
+                        edit_embedder(embedder.name, is_selected)
+                else:
+                    st.button("Edit", key=f"edit_{embedder.name}_disabled", disabled=True)
     except Exception as e:
         st.error(f"Error fetching embedders: {e}")
 
 
 @st.dialog(title="Edit Embedder", width="large")
-def edit_embedder(embedder_name: str, is_selected: bool):
+def edit_embedder(embedder_name: str, is_selected: bool, cookie_me: Dict | None):
+    if not has_access("EMBEDDER", "WRITE", cookie_me):
+        st.error("You do not have access to edit embedders.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
 
     st.subheader(f"Editing: **{embedder_name}**")
@@ -86,4 +98,4 @@ def edit_embedder(embedder_name: str, is_selected: bool):
 def embedders_management(cookie_me: Dict | None):
     st.title("Embedders Management Dashboard")
 
-    list_embedders()
+    list_embedders(cookie_me)

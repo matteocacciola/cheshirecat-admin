@@ -10,11 +10,16 @@ from app.utils import (
     show_overlay_spinner,
     build_client_configuration,
     render_json_form,
+    has_access,
 )
 
 
-def list_vector_databases(agent_id: str):
+def list_vector_databases(agent_id: str, cookie_me: Dict | None):
     run_toast()
+
+    if not has_access("VECTOR_DATABASE", "LIST", cookie_me):
+        st.error("You do not have access to view vector databases for this agent.")
+        return
 
     client = CheshireCatClient(build_client_configuration())
     st.header("Vector Databases")
@@ -39,14 +44,21 @@ def list_vector_databases(agent_id: str):
                     st.write('<div class="picked">✅</div>', unsafe_allow_html=True)
 
             with col3:
-                if st.button("Edit" if is_selected else "Select", key=f"edit_{vector_database.name}"):
-                    edit_vector_database(agent_id, vector_database.name, is_selected)
+                if has_access("VECTOR_DATABASE", "WRITE", cookie_me):
+                    if st.button("Edit" if is_selected else "Select", key=f"edit_{vector_database.name}"):
+                        edit_vector_database(agent_id, vector_database.name, is_selected)
+                else:
+                    st.button("Edit", key=f"edit_{vector_database.name}_disabled", disabled=True)
     except Exception as e:
         st.error(f"Error fetching vector databases: {e}")
 
 
 @st.dialog(title="Edit Vector Database", width="large")
-def edit_vector_database(agent_id: str, vector_database_name: str, is_selected: bool):
+def edit_vector_database(agent_id: str, vector_database_name: str, is_selected: bool, cookie_me: Dict | None):
+    if not has_access("VECTOR_DATABASE", "WRITE", cookie_me):
+        st.error("You do not have access to edit vector databases for this agent.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
 
     st.subheader(f"Editing: **{vector_database_name}**")
@@ -90,4 +102,4 @@ def vector_databases_management(cookie_me: Dict | None):
 
     build_agents_select("vector_databases", cookie_me)
     if "agent_id" in st.session_state:
-        list_vector_databases(st.session_state["agent_id"])
+        list_vector_databases(st.session_state["agent_id"], cookie_me)

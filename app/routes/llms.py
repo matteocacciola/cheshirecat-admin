@@ -10,11 +10,16 @@ from app.utils import (
     show_overlay_spinner,
     build_client_configuration,
     render_json_form,
+    has_access,
 )
 
 
-def list_llms(agent_id: str):
+def list_llms(agent_id: str, cookie_me: Dict | None):
     run_toast()
+
+    if not has_access("LLM", "LIST", cookie_me):
+        st.error("You do not have access to view LLMs for this agent.")
+        return
 
     client = CheshireCatClient(build_client_configuration())
     st.header("LLMs")
@@ -39,14 +44,21 @@ def list_llms(agent_id: str):
                     st.write('<div class="picked">✅</div>', unsafe_allow_html=True)
 
             with col3:
-                if st.button("Edit" if is_selected else "Select", key=f"edit_{llm.name}"):
-                    edit_llm(agent_id, llm.name, is_selected)
+                if has_access("LLM", "WRITE", cookie_me):
+                    if st.button("Edit" if is_selected else "Select", key=f"edit_{llm.name}"):
+                        edit_llm(agent_id, llm.name, is_selected)
+                else:
+                    st.button("Edit", key=f"edit_{llm.name}_disabled", disabled=True)
     except Exception as e:
         st.error(f"Error fetching LLMs: {e}")
 
 
 @st.dialog(title="Edit LLM", width="large")
-def edit_llm(agent_id: str, llm_name: str, is_selected: bool):
+def edit_llm(agent_id: str, llm_name: str, is_selected: bool, cookie_me: Dict | None):
+    if not has_access("LLM", "WRITE", cookie_me):
+        st.error("You do not have access to edit LLMs for this agent.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
 
     st.subheader(f"Editing: **{llm_name}**")
@@ -90,4 +102,4 @@ def llms_management(cookie_me: Dict | None):
 
     build_agents_select("llms", cookie_me)
     if "agent_id" in st.session_state:
-        list_llms(st.session_state["agent_id"])
+        list_llms(st.session_state["agent_id"], cookie_me)

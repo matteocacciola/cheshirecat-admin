@@ -10,11 +10,16 @@ from app.utils import (
     show_overlay_spinner,
     build_client_configuration,
     render_json_form,
+    has_access,
 )
 
 
-def list_file_managers(agent_id: str):
+def list_file_managers(agent_id: str, cookie_me: Dict | None):
     run_toast()
+
+    if not has_access("FILE_MANAGER", "LIST", cookie_me):
+        st.error("You do not have access to view file managers for this agent.")
+        return
 
     client = CheshireCatClient(build_client_configuration())
     st.header("File Managers")
@@ -39,14 +44,21 @@ def list_file_managers(agent_id: str):
                     st.write('<div class="picked">✅</div>', unsafe_allow_html=True)
 
             with col3:
-                if st.button("Edit" if is_selected else "Select", key=f"edit_{file_manager.name}"):
-                    edit_file_manager(agent_id, file_manager.name, is_selected)
+                if has_access("FILE_MANAGER", "WRITE", cookie_me):
+                    if st.button("Edit" if is_selected else "Select", key=f"edit_{file_manager.name}"):
+                        edit_file_manager(agent_id, file_manager.name, is_selected)
+                else:
+                    st.button("Edit", key=f"edit_{file_manager.name}_disabled", disabled=True)
     except Exception as e:
         st.error(f"Error fetching file managers: {e}")
 
 
 @st.dialog(title="Edit File Manager", width="large")
-def edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool):
+def edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool, cookie_me: Dict | None):
+    if not has_access("FILE_MANAGER", "WRITE", cookie_me):
+        st.error("You do not have access to edit file managers for this agent.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
 
     st.subheader(f"Editing: **{file_manager_name}**")
@@ -93,4 +105,4 @@ def file_managers_management(cookie_me: Dict | None):
 
     build_agents_select("file_managers", cookie_me)
     if "agent_id" in st.session_state:
-        list_file_managers(st.session_state["agent_id"])
+        list_file_managers(st.session_state["agent_id"], cookie_me)
