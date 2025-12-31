@@ -283,6 +283,10 @@ def rabbit_hole_management(cookie_me: Dict | None):
 
     # Navigation
     menu_options = {
+        "(Select a menu)": {
+            "page": None,
+            "permission": True,
+        },
         "Upload Files": {
             "page": "upload_files",
             "permission": has_access("UPLOAD", "WRITE", cookie_me),
@@ -296,7 +300,7 @@ def rabbit_hole_management(cookie_me: Dict | None):
             "permission": has_access("MEMORY", "READ", cookie_me),
         },
     }
-    if not any(option["permission"] for option in menu_options.values()):
+    if not any(option["permission"] for option in menu_options.values() if option["page"]):
         st.error("You do not have access to any Knowledge Base management features.")
         return
 
@@ -306,15 +310,15 @@ def rabbit_hole_management(cookie_me: Dict | None):
         if details["permission"]
     }
 
-    choice = st.selectbox("Menu", {"(Select a menu)": None} | choices)
+    choice = st.selectbox("Menu", choices)
 
-    if menu_options[choice] == "upload_files":
+    if menu_options[choice]["page"] == "upload_files":
         upload_files(agent_id, cookie_me)
         return
 
-    if menu_options[choice] == "upload_url":
+    if menu_options[choice]["page"] == "upload_url":
         upload_url(agent_id, cookie_me)
         return
 
-    if menu_options[choice] == "list_files":
+    if menu_options[choice]["page"] == "list_files":
         list_files(agent_id, cookie_me)

@@ -231,6 +231,10 @@ def users_management(cookie_me: Dict | None):
 
     # Navigation
     menu_options = {
+        "(Select a menu)": {
+            "page": None,
+            "permission": True,
+        },
         "List Users": {
             "page": "list_users",
             "permission": has_access("USERS", "READ", cookie_me),
@@ -241,7 +245,7 @@ def users_management(cookie_me: Dict | None):
         },
     }
 
-    if not any(option["permission"] for option in menu_options.values()):
+    if not any(option["permission"] for option in menu_options.values() if option["page"]):
         st.error("You do not have access to any user management features.")
         return
 
@@ -251,11 +255,11 @@ def users_management(cookie_me: Dict | None):
         if details["permission"]
     }
 
-    choice = st.selectbox("Menu", {"(Select a menu)": None} | choices)
+    choice = st.selectbox("Menu", choices)
 
-    if choice == "list_users":
+    if menu_options[choice]["page"] == "list_users":
         list_users(agent_id, cookie_me)
         return
 
-    if choice == "create_user":
+    if menu_options[choice]["page"] == "create_user":
         create_user(agent_id, cookie_me)

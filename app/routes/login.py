@@ -5,11 +5,13 @@ from streamlit_js_eval import set_cookie
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.env import get_env
-from app.utils import show_overlay_spinner, build_client_configuration
+from app.utils import show_overlay_spinner, build_client_configuration, clear_auth_cookies
 
 
 def login_page():
-    st.title("Login Page")
+    st.header("Login Page")
+
+    st.sidebar.warning("Please log in to access the admin features.")
 
     # Render login form
     with st.form(key="login_form"):
@@ -46,6 +48,8 @@ def login_page():
             time.sleep(1)  # Wait for a moment before rerunning
             st.rerun()
         except Exception as e:
+            clear_auth_cookies()
+
             spinner_container.empty()
             st.error(f"Error during authentication: {e}")
             return

@@ -15,6 +15,7 @@ from app.utils import (
     build_client_configuration,
     render_json_form,
     image_to_base64,
+    has_access,
 )
 
 # Pagination settings
@@ -76,6 +77,10 @@ def paginate_items(items: list, section_key: str, items_per_page: int):
 
 def render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCatClient, cookie_me: Dict | None):
     """Render a single installed plugin row."""
+    if not has_access("PLUGIN", "READ", cookie_me):
+        st.error("You do not have permission to view plugin details.")
+        return
+
     col0, col1, col2, col3, col4 = st.columns([0.05, 0.63, 0.1, 0.12, 0.1])
 
     with col0:
@@ -99,37 +104,45 @@ def render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCatC
             view_plugin_details(p.id)
 
     with col3:
-        if p.id in core_plugins_ids:
-            if p.id != "base_plugin" and st.button(
-                    f"{'Untoggle' if p.local_info['active'] else 'Toggle'} Plugin",
-                    key=f"toggle_{p.id}",
-                    help=f"{'Untoggle' if p.local_info['active'] else 'Toggle'} this plugin. This is a core plugin and cannot be uninstalled.",
-            ):
-                spinner_container = show_overlay_spinner("Toggling plugin...")
-                try:
-                    client.admins.put_toggle_plugin(p.id)
-                    st.toast(f"Plugin {p.id} toggled successfully!", icon="✅")
-                    time.sleep(1)
-                except Exception as e:
-                    st.error(f"Error toggling plugin: {e}", icon="❌")
-                finally:
-                    spinner_container.empty()
-                st.rerun()
-        else:
-            if st.button(
-                    "Uninstall Plugin",
-                    key=f"uninstall_{p.id}",
-                    help="Uninstall this plugin",
-            ):
-                st.session_state["plugin_to_uninstall"] = p.id
+        if has_access("PLUGIN", "WRITE", cookie_me):
+            if p.id in core_plugins_ids:
+                if p.id != "base_plugin" and st.button(
+                        f"{'Untoggle' if p.local_info['active'] else 'Toggle'} Plugin",
+                        key=f"toggle_{p.id}",
+                        help=f"{'Untoggle' if p.local_info['active'] else 'Toggle'} this plugin. This is a core plugin and cannot be uninstalled.",
+                ):
+                    spinner_container = show_overlay_spinner("Toggling plugin...")
+                    try:
+                        client.admins.put_toggle_plugin(p.id)
+                        st.toast(f"Plugin {p.id} toggled successfully!", icon="✅")
+                        time.sleep(1)
+                    except Exception as e:
+                        st.error(f"Error toggling plugin: {e}", icon="❌")
+                    finally:
+                        spinner_container.empty()
+                    st.rerun()
+            else:
+                if st.button(
+                        "Uninstall Plugin",
+                        key=f"uninstall_{p.id}",
+                        help="Uninstall this plugin",
+                ):
+                    st.session_state["plugin_to_uninstall"] = p.id
 
     with col4:
+        if not has_access("PLUGIN", "WRITE", cookie_me):
+            return
+
         if p.id != "base_plugin" and p.local_info["active"] and st.button("Manage", key=f"manage_{p.id}"):
-            manage_plugin(p.id, cookie_me)
+            manage_plugin(p.id)
 
 
-def render_registry_plugin(registry_plugin, client: CheshireCatClient):
+def render_registry_plugin(registry_plugin, client: CheshireCatClient, cookie_me: Dict | None):
     """Render a single registry plugin row."""
+    if not has_access("PLUGIN", "READ", cookie_me):
+        st.error("You do not have permission to view plugin details.")
+        return
+
     plugin_url = registry_plugin.id
 
     col0, col1, col2 = st.columns([0.05, 0.65, 0.3])
@@ -155,7 +168,7 @@ def render_registry_plugin(registry_plugin, client: CheshireCatClient):
             st.write(f"**Tags**: {registry_plugin.tags or 'No tags'}")
 
     with col2:
-        if st.button("Install Plugin", key=f"install_{registry_plugin.name}"):
+        if has_access("PLUGIN", "WRITE", cookie_me) and st.button("Install Plugin", key=f"install_{registry_plugin.name}"):
             spinner_container = show_overlay_spinner("Installing plugin...")
             try:
                 client.admins.post_install_plugin_from_registry(url=plugin_url)
@@ -197,6 +210,10 @@ def render_uninstall_confirmation(client: CheshireCatClient):
 def list_plugins(cookie_me: Dict | None):
     run_toast()
 
+    if not has_access("PLUGIN", "READ", cookie_me):
+        st.error("You do not have access to view plugins.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
     st.header("Available Plugins")
 
@@ -229,7 +246,8 @@ def list_plugins(cookie_me: Dict | None):
                 render_pagination_controls("installed", current_page, total_pages)
 
         # Uninstall confirmation
-        render_uninstall_confirmation(client)
+        if has_access("PLUGIN", "WRITE", cookie_me):
+            render_uninstall_confirmation(client)
 
         st.divider()
 
@@ -245,7 +263,7 @@ def list_plugins(cookie_me: Dict | None):
 
             # Display paginated registry plugins
             for registry_plugin in paginated_registry:
-                render_registry_plugin(registry_plugin, client)
+                render_registry_plugin(registry_plugin, client, cookie_me)
 
             # Pagination controls for registry plugins
             if total_pages > 1:
@@ -309,8 +327,7 @@ def view_plugin_details(plugin_id: str):
 
 
 @st.dialog(title="Manage Plugin", width="large")
-def manage_plugin(plugin_id: str, cookie_me: Dict | None):
-    build_agents_select("plugins", cookie_me)
+def manage_plugin(plugin_id: str):
     if not (agent_id := st.session_state.get("agent_id")):
         return
 
@@ -449,32 +466,28 @@ def install_plugin_from_file():
             st.toast("Please select a file to upload", icon="⚠️")
 
 
-def view_plugin_settings():
-    client = CheshireCatClient(build_client_configuration())
-    st.header("All Plugin Settings")
-
-    try:
-        plugins_settings = client.admins.get_plugins_settings()
-        for plugin_settings in plugins_settings.settings:
-            with st.expander(f"Plugin: {plugin_settings.name} (ID: {plugin_settings.id})", icon="⚙️"):
-                st.json(get_factory_settings(plugin_settings, is_selected=False))
-    except Exception as e:
-        st.error(f"Error fetching plugin settings: {e}")
-
-
 def admin_plugins_management(cookie_me: Dict | None):
     st.title("Plugins Management Dashboard")
 
     # Navigation
     menu_options = {
-        "(Select a menu)": None,
-        "Browse Plugins": "browse_plugins",
-        "Install from File": "install_from_file",
+        "(Select a menu)": {
+            "page": None,
+            "permission": True,
+        },
+        "Browse Plugins": {
+            "page": "browse_plugins",
+            "permission": has_access("PLUGIN", None, cookie_me),
+        },
+        "Install from File": {
+            "page": "install_from_file",
+            "permission": has_access("PLUGIN", "WRITE", cookie_me),
+        },
     }
     choice = st.selectbox("Menu", menu_options)
 
-    if menu_options[choice] == "browse_plugins":
+    if menu_options[choice]["page"] == "browse_plugins":
         list_plugins(cookie_me)
         return
-    if menu_options[choice] == "install_from_file":
+    if menu_options[choice]["page"] == "install_from_file":
         install_plugin_from_file()

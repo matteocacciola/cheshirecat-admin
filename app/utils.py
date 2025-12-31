@@ -1,7 +1,7 @@
 import base64
 import json
 import os.path
-from typing import Dict, Any
+from typing import Dict, Any, List
 from slugify import slugify
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient, Configuration
@@ -41,25 +41,44 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
     }
 
 
-def build_agents_select(k: str, cookie_me: Dict | None):
-    if st.session_state.get("agent_id") is not None:
-        return  # already selected
-
+def _build_agents_select(k: str, cookie_me: Dict | None, excluded_agents: List[str] | None = None) -> bool:
     if cookie_me:  # login by credentials
         agents = [agent["agent_name"] for agent in cookie_me.get("agents", [])]
-    else:
+    else:  # login by API key
         client = CheshireCatClient(build_client_configuration())
         agents = client.utils.get_agents()
 
-    # Sidebar navigation
-    menu_options = {"(Select an Agent)": None} | {agent: slugify(agent) for agent in agents}
+    # Navigation
+    agent_options = {
+        agent: slugify(agent) for agent in agents if agent not in (excluded_agents or [])
+    }
+    if len(agent_options) == 0:
+        return False
+
+    menu_options = {"(Select an Agent)": None} | agent_options
     choice = st.selectbox("Agents", menu_options, key=f"agent_select_{k}")
     if menu_options[choice] is None:
         st.info("Please select an agent to manage.")
         st.session_state.pop("agent_id", None)
-        return
+        return True
 
     st.session_state["agent_id"] = choice
+    return True
+
+
+def build_agents_select(k: str, cookie_me: Dict | None):
+    if st.session_state.get("agent_id") is not None:
+        return  # already selected
+
+    _build_agents_select(k, cookie_me, excluded_agents=["system"])
+
+
+def build_agents_toggle_select(k: str, cookie_me: Dict | None):
+    excluded_agents = ["system"]
+    if st.session_state.get("agent_id") is not None:
+        excluded_agents.append(st.session_state["agent_id"])
+    if _build_agents_select(k, cookie_me, excluded_agents=excluded_agents):
+        st.divider()
 
 
 def build_users_select(k: str, agent_id: str, cookie_me: Dict | None):
@@ -239,7 +258,7 @@ def has_access(resource: str, required_role: str | None, cookie_me: Dict | None)
 
     try:
         # in cookie_me.agents find the one with agent_id
-        agent_match = next((agent for agent in cookie_me.get("agents", []) if agent.get("agent_id") == agent_id), None)
+        agent_match = next((agent for agent in cookie_me.get("agents", []) if agent.get("agent_name") == agent_id), None)
         if not agent_match:
             return False
 

@@ -242,6 +242,10 @@ def utilities_management(cookie_me: Dict | None):
 
     # Navigation
     menu_options = {
+        "(Select a menu)": {
+            "page": None,
+            "permission": True,
+        },
         "Agent Management": {
             "page": "agent_management",
             "permission": has_access("CHESHIRE_CAT", "READ", cookie_me),
@@ -255,7 +259,7 @@ def utilities_management(cookie_me: Dict | None):
             "permission": has_access("SYSTEM", "DELETE", cookie_me),
         },
     }
-    if not any(option["permission"] for option in menu_options.values()):
+    if not any(option["permission"] for option in menu_options.values() if option["page"]):
         st.error("You do not have access to any utilities.")
         return
 
@@ -265,13 +269,13 @@ def utilities_management(cookie_me: Dict | None):
         if details["permission"]
     }
 
-    choice = st.selectbox("Menu", {"(Select a menu)": None} | choices)
+    choice = st.selectbox("Menu", choices)
 
-    if menu_options[choice] == "agent_management":
+    if menu_options[choice]["page"] == "agent_management":
         list_agents(cookie_me)
         return
-    if menu_options[choice] == "create_agent":
+    if menu_options[choice]["page"] == "create_agent":
         create_agent(cookie_me)
         return
-    if menu_options[choice] == "factory_reset":
+    if menu_options[choice]["page"] == "factory_reset":
         factory_reset(cookie_me)

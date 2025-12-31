@@ -224,6 +224,10 @@ def memory_management(cookie_me: Dict | None):
 
     # Navigation
     menu_options = {
+        "(Select a menu)": {
+            "page": None,
+            "permission": True,
+        },
         "List Memory Collections": {
             "page": "list_collections",
             "permission": has_access("MEMORY", "READ", cookie_me),
@@ -233,7 +237,7 @@ def memory_management(cookie_me: Dict | None):
             "permission": has_access("MEMORY", "READ", cookie_me),
         },
     }
-    if not any(option["permission"] for option in menu_options.values()):
+    if not any(option["permission"] for option in menu_options.values() if option["page"]):
         st.error("You do not have access to any memory management features.")
         return
 
@@ -243,13 +247,15 @@ def memory_management(cookie_me: Dict | None):
         if details["permission"]
     }
 
-    choice = st.selectbox("Menu", {"(Select a menu)": None} | choices)
+    choice = st.selectbox("Menu", choices)
+    if not choice:
+        return
 
-    if menu_options[choice] == "list_collections":
+    if menu_options[choice]["page"] == "list_collections":
         memory_collections(agent_id, cookie_me)
         return
 
-    if menu_options[choice] == "view_conversation_history":
+    if menu_options[choice]["page"] == "view_conversation_history":
         build_users_select("memory", agent_id, cookie_me)
         if not (user_id := st.session_state.get("user_id")):
             return
