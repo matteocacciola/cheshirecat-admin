@@ -10,11 +10,16 @@ from app.utils import (
     show_overlay_spinner,
     build_client_configuration,
     render_json_form,
+    has_access,
 )
 
 
-def list_auth_handlers(agent_id: str):
+def list_auth_handlers(agent_id: str, cookie_me: Dict | None):
     run_toast()
+
+    if not has_access("AUTH_HANDLER", "LIST", cookie_me):
+        st.error("You do not have access to view authentication handlers for this agent.")
+        return
 
     client = CheshireCatClient(build_client_configuration())
     st.header("Authentication Handlers")
@@ -39,14 +44,21 @@ def list_auth_handlers(agent_id: str):
                     st.write('<div class="picked">✅</div>', unsafe_allow_html=True)
 
             with col3:
-                if st.button("Edit" if is_selected else "Select", key=f"edit_{handler.name}"):
-                    edit_auth_handler(agent_id, handler.name, is_selected)
+                if has_access("AUTH_HANDLER", "WRITE", cookie_me):
+                    if st.button("Edit" if is_selected else "Select", key=f"edit_{handler.name}"):
+                        edit_auth_handler(agent_id, handler.name, is_selected, cookie_me)
+                else:
+                    st.button("Edit", key=f"edit_{handler.name}_disabled", disabled=True)
     except Exception as e:
         st.error(f"Error fetching authentication handlers: {e}")
 
 
 @st.dialog(title="Edit Authentication Handler", width="large")
-def edit_auth_handler(agent_id: str, handler_name: str, is_selected: bool):
+def edit_auth_handler(agent_id: str, handler_name: str, is_selected: bool, cookie_me: Dict | None):
+    if not has_access("AUTH_HANDLER", "WRITE", cookie_me):
+        st.error("You do not have access to edit authentication handlers for this agent.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
 
     st.subheader(f"Editing: **{handler_name}**")
@@ -90,4 +102,4 @@ def auth_handlers_management(cookie_me: Dict | None):
 
     build_agents_select("auth_handlers", cookie_me)
     if "agent_id" in st.session_state:
-        list_auth_handlers(st.session_state["agent_id"])
+        list_auth_handlers(st.session_state["agent_id"], cookie_me)
