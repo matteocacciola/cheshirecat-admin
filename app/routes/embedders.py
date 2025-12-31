@@ -16,7 +16,7 @@ from app.utils import (
 def list_embedders(cookie_me: Dict | None):
     run_toast()
 
-    if not has_access("EMBEDDER", "LIST", cookie_me):
+    if not has_access("EMBEDDER", "READ", cookie_me):
         st.error("You do not have access to view embedders.")
         return
 
@@ -47,7 +47,12 @@ def list_embedders(cookie_me: Dict | None):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{embedder.name}"):
                         edit_embedder(embedder.name, is_selected)
                 else:
-                    st.button("Edit", key=f"edit_{embedder.name}_disabled", disabled=True)
+                    st.button(
+                        "Edit",
+                        key=f"edit_{embedder.name}",
+                        disabled=True,
+                        help="You do not have permission to edit embedders.",
+                    )
     except Exception as e:
         st.error(f"Error fetching embedders: {e}")
 

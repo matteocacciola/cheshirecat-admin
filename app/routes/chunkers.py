@@ -17,7 +17,7 @@ from app.utils import (
 def list_chunkers(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
-    if not has_access("CHUNKER", "LIST", cookie_me):
+    if not has_access("CHUNKER", "READ", cookie_me):
         st.error("You do not have access to view chunkers for this agent.")
         return
 
@@ -48,7 +48,12 @@ def list_chunkers(agent_id: str, cookie_me: Dict | None):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{chunker.name}"):
                         edit_chunker(agent_id, chunker.name, is_selected, cookie_me)
                 else:
-                    st.button("Edit", key=f"edit_{chunker.name}_disabled", disabled=True)
+                    st.button(
+                        "Edit",
+                        key=f"edit_{chunker.name}",
+                        disabled=True,
+                        help="You do not have permission to edit chunkers.",
+                    )
     except Exception as e:
         st.error(f"Error fetching chunkers: {e}")
 

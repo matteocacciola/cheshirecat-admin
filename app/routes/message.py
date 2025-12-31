@@ -5,18 +5,21 @@ from cheshirecat_python_sdk import CheshireCatClient
 from cheshirecat_python_sdk.models.dtos import Message
 
 from app.constants import INTRO_MESSAGE
-from app.utils import build_agents_select, build_users_select, build_client_configuration
+from app.utils import build_agents_select, build_users_select, build_client_configuration, has_access
 
 
 def chat(cookie_me: Dict | None):
     st.header("Chat with the CheshireCat")
+
+    if not has_access("CHAT", "WRITE", cookie_me):
+        st.error("You do not have permission to access the chat functionality.")
+        return
 
     build_agents_select("chat", cookie_me)
     if not (agent_id := st.session_state.get("agent_id")):
         return
 
     build_users_select("chat", agent_id, cookie_me)
-
     if not (user_id := st.session_state.get("user_id")):
         return
 

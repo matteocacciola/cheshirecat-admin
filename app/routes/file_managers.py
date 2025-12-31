@@ -17,7 +17,7 @@ from app.utils import (
 def list_file_managers(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
-    if not has_access("FILE_MANAGER", "LIST", cookie_me):
+    if not has_access("FILE_MANAGER", "READ", cookie_me):
         st.error("You do not have access to view file managers for this agent.")
         return
 
@@ -48,7 +48,12 @@ def list_file_managers(agent_id: str, cookie_me: Dict | None):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{file_manager.name}"):
                         edit_file_manager(agent_id, file_manager.name, is_selected)
                 else:
-                    st.button("Edit", key=f"edit_{file_manager.name}_disabled", disabled=True)
+                    st.button(
+                        "Edit",
+                        key=f"edit_{file_manager.name}",
+                        disabled=True,
+                        help="You do not have permission to edit file managers.",
+                    )
     except Exception as e:
         st.error(f"Error fetching file managers: {e}")
 

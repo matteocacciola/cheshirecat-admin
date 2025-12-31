@@ -3,10 +3,16 @@ from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
-from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration, run_toast
+from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration, run_toast, has_access
 
 
-def create_user(agent_id: str):
+def create_user(agent_id: str, cookie_me: Dict | None):
+    run_toast()
+
+    if not has_access("USERS", "WRITE", cookie_me):
+        st.error("You do not have permission to create users.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
 
     # Initialize form key in session state if not present
@@ -60,8 +66,12 @@ def create_user(agent_id: str):
             spinner_container.empty()
 
 
-def list_users(agent_id: str):
+def list_users(agent_id: str, cookie_me: Dict | None):
     run_toast()
+
+    if not has_access("USERS", "READ", cookie_me):
+        st.error("You do not have permission to view users.")
+        return
 
     client = CheshireCatClient(build_client_configuration())
     st.header("List All Users")
@@ -83,21 +93,29 @@ def list_users(agent_id: str):
             with col2:
                 # Action buttons
                 if st.button("View", key=f"view_{user.id}"):
-                    get_user(agent_id, user.id)
+                    get_user(agent_id, user.id, cookie_me)
 
             with col3:
-                if st.button("Update", key=f"update_{user.id}"):
-                    update_user(agent_id, user.id)
+                if has_access("USERS", "WRITE", cookie_me):
+                    if st.button("Update", key=f"update_{user.id}"):
+                        update_user(agent_id, user.id, cookie_me)
+                else:
+                    st.button("Update", key=f"update_{user.id}", disabled=True, help="No permission to update")
 
             with col4:
-                if (
-                        user.username != "user"
-                        and st.button("Delete", key=f"delete_{user.id}", help="Permanently delete this item")
-                ):
-                    st.session_state["user_to_delete"] = user
+                if has_access("USERS", "DELETE", cookie_me):
+                    if st.button("Delete", key=f"delete_{user.id}", help="Permanently delete this item"):
+                        st.session_state["user_to_delete"] = user
+                else:
+                    st.button("Delete", key=f"delete_{user.id}", disabled=True, help="No permission to delete")
 
         # Delete confirmation
         if not (user := st.session_state.get("user_to_delete")):
+            return
+
+        if not has_access("USERS", "DELETE", cookie_me):
+            st.error("You do not have permission to delete users.")
+            st.session_state.pop("user_to_delete", None)
             return
 
         st.warning(f"⚠️ Are you sure you want to permanently delete user `{user.id}`?")
@@ -124,7 +142,11 @@ def list_users(agent_id: str):
 
 
 @st.dialog(title="User Details", width="large")
-def get_user(agent_id: str, user_id: str):
+def get_user(agent_id: str, user_id: str, cookie_me: Dict | None):
+    if not has_access("USERS", "READ", cookie_me):
+        st.error("You do not have permission to view user details.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
     st.header(f"User Details for ID: {user_id}")
 
@@ -136,7 +158,11 @@ def get_user(agent_id: str, user_id: str):
 
 
 @st.dialog(title="Update Details", width="large")
-def update_user(agent_id: str, user_id: str):
+def update_user(agent_id: str, user_id: str, cookie_me: Dict | None):
+    if not has_access("USERS", "WRITE", cookie_me):
+        st.error("You do not have permission to update users.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
     st.header(f"Update User ID: {user_id}")
 
@@ -200,17 +226,36 @@ def users_management(cookie_me: Dict | None):
     st.title("User Management Dashboard")
 
     build_agents_select("users", cookie_me)
-
     if not (agent_id := st.session_state.get("agent_id")):
         return
 
-    # Sidebar navigation
-    menu_options = ["List Users", "Create User"]
-    choice = st.selectbox("Menu", menu_options)
+    # Navigation
+    menu_options = {
+        "List Users": {
+            "page": "list_users",
+            "permission": has_access("USERS", "READ", cookie_me),
+        },
+        "Create User": {
+            "page": "create_user",
+            "permission": has_access("USERS", "WRITE", cookie_me),
+        },
+    }
 
-    if choice == "List Users":
-        list_users(agent_id)
+    if not any(option["permission"] for option in menu_options.values()):
+        st.error("You do not have access to any user management features.")
         return
 
-    if choice == "Create User":
-        create_user(agent_id)
+    choices = {
+        name: details["page"]
+        for name, details in menu_options.items()
+        if details["permission"]
+    }
+
+    choice = st.selectbox("Menu", {"(Select a menu)": None} | choices)
+
+    if choice == "list_users":
+        list_users(agent_id, cookie_me)
+        return
+
+    if choice == "create_user":
+        create_user(agent_id, cookie_me)

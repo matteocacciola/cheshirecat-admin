@@ -7,12 +7,18 @@ from cheshirecat_python_sdk import CheshireCatClient
 import json
 import base64
 
-from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration
+from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration, has_access, run_toast
 
 
-def upload_files(agent_id: str):
+def upload_files(agent_id: str, cookie_me: Dict | None):
     def add_file_pair():
         st.session_state["file_metadata_pairs"].append({"file": None, "metadata": "{}"})
+
+    run_toast()
+
+    if not has_access("UPLOAD", "WRITE", cookie_me):
+        st.error("You do not have permission to upload files.")
+        return
 
     client = CheshireCatClient(build_client_configuration())
     st.header("Upload Files")
@@ -120,7 +126,13 @@ def upload_files(agent_id: str):
                     pass  # Ignore cleanup errors
 
 
-def upload_url(agent_id: str):
+def upload_url(agent_id: str, cookie_me: Dict | None):
+    run_toast()
+
+    if not has_access("UPLOAD", "WRITE", cookie_me):
+        st.error("You do not have permission to upload files.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
     st.header("Upload from URL")
 
@@ -157,7 +169,13 @@ def upload_url(agent_id: str):
             spinner_container.empty()
 
 
-def list_files(agent_id: str):
+def list_files(agent_id: str, cookie_me: Dict | None):
+    run_toast()
+
+    if not has_access("MEMORY", "READ", cookie_me):
+        st.error("You do not have permission to view uploaded files.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
     st.header("Uploaded Files")
 
@@ -212,11 +230,19 @@ def list_files(agent_id: str):
                         st.toast(f"Error downloading file: {e}", icon="❌")
 
             with col3:
-                if st.button("Delete", key=f"delete_{file.name}", help="Permanently delete this file"):
-                    st.session_state["file_to_delete"] = file
+                if has_access("MEMORY", "DELETE", cookie_me):
+                    if st.button("Delete", key=f"delete_{file.name}", help="Permanently delete this file"):
+                        st.session_state["file_to_delete"] = file
+                else:
+                    st.button("Delete", key=f"delete_{file.name}", disabled=True, help="You do not have permission to delete files")
 
         # Delete confirmation
         if not (file := st.session_state.get("file_to_delete")):
+            return
+
+        if not has_access("MEMORY", "DELETE", cookie_me):
+            st.error("You do not have permission to delete files.")
+            st.session_state.pop("file_to_delete", None)
             return
 
         st.warning(f"⚠️ Are you sure you want to permanently delete file `{file.name}`?")
@@ -255,21 +281,40 @@ def rabbit_hole_management(cookie_me: Dict | None):
     if not (agent_id := st.session_state.get("agent_id")):
         return
 
+    # Navigation
     menu_options = {
-        "(Select a menu)": None,
-        "Upload Files": "upload_files",
-        "Upload from URL": "upload_url",
-        "View Uploaded Files": "list_files",
+        "Upload Files": {
+            "page": "upload_files",
+            "permission": has_access("UPLOAD", "WRITE", cookie_me),
+        },
+        "Upload from URL": {
+            "page": "upload_url",
+            "permission": has_access("UPLOAD", "WRITE", cookie_me),
+        },
+        "View Uploaded Files": {
+            "page": "list_files",
+            "permission": has_access("MEMORY", "READ", cookie_me),
+        },
     }
-    choice = st.selectbox("Menu", menu_options)
+    if not any(option["permission"] for option in menu_options.values()):
+        st.error("You do not have access to any Knowledge Base management features.")
+        return
+
+    choices = {
+        name: details["page"]
+        for name, details in menu_options.items()
+        if details["permission"]
+    }
+
+    choice = st.selectbox("Menu", {"(Select a menu)": None} | choices)
 
     if menu_options[choice] == "upload_files":
-        upload_files(agent_id)
+        upload_files(agent_id, cookie_me)
         return
 
     if menu_options[choice] == "upload_url":
-        upload_url(agent_id)
+        upload_url(agent_id, cookie_me)
         return
 
     if menu_options[choice] == "list_files":
-        list_files(agent_id)
+        list_files(agent_id, cookie_me)

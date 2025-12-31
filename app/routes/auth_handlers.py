@@ -17,7 +17,7 @@ from app.utils import (
 def list_auth_handlers(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
-    if not has_access("AUTH_HANDLER", "LIST", cookie_me):
+    if not has_access("AUTH_HANDLER", "READ", cookie_me):
         st.error("You do not have access to view authentication handlers for this agent.")
         return
 
@@ -48,7 +48,12 @@ def list_auth_handlers(agent_id: str, cookie_me: Dict | None):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{handler.name}"):
                         edit_auth_handler(agent_id, handler.name, is_selected, cookie_me)
                 else:
-                    st.button("Edit", key=f"edit_{handler.name}_disabled", disabled=True)
+                    st.button(
+                        "Edit",
+                        key=f"edit_{handler.name}",
+                        disabled=True,
+                        help="You do not have permission to edit authentication handlers."
+                    )
     except Exception as e:
         st.error(f"Error fetching authentication handlers: {e}")
 

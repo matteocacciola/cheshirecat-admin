@@ -17,7 +17,7 @@ from app.utils import (
 def list_llms(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
-    if not has_access("LLM", "LIST", cookie_me):
+    if not has_access("LLM", "READ", cookie_me):
         st.error("You do not have access to view LLMs for this agent.")
         return
 
@@ -48,7 +48,12 @@ def list_llms(agent_id: str, cookie_me: Dict | None):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{llm.name}"):
                         edit_llm(agent_id, llm.name, is_selected)
                 else:
-                    st.button("Edit", key=f"edit_{llm.name}_disabled", disabled=True)
+                    st.button(
+                        "Edit",
+                        key=f"edit_{llm.name}",
+                        disabled=True,
+                        help="You do not have permission to edit LLMs.",
+                    )
     except Exception as e:
         st.error(f"Error fetching LLMs: {e}")
 

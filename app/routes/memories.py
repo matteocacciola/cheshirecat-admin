@@ -9,10 +9,18 @@ from app.utils import (
     build_conversations_select,
     build_users_select,
     show_overlay_spinner,
+    has_access,
+    run_toast,
 )
 
 
-def memory_collections(agent_id: str):
+def memory_collections(agent_id: str, cookie_me: Dict | None):
+    run_toast()
+
+    if not has_access("MEMORY", "READ", cookie_me):
+        st.error("You do not have access to view memory collections.")
+        return
+
     client = CheshireCatClient(build_client_configuration())
     st.header("Memory Collections")
 
@@ -32,13 +40,21 @@ def memory_collections(agent_id: str):
                 st.write(f"Vectors count: {collection.vectors_count}")
 
             with col2:
-                if st.button("Delete", key=f"destroy_{collection.name}", help="Permanently destroy this collection"):
-                    st.session_state["collection_to_delete"] = collection.name
+                if has_access("MEMORY", "DELETE", cookie_me):
+                    if st.button("Delete", key=f"destroy_{collection.name}", help="Permanently destroy this collection"):
+                        st.session_state["collection_to_delete"] = collection.name
+                else:
+                    st.button(
+                        "Delete",
+                        key=f"destroy_{collection.name}",
+                        disabled=True,
+                        help="You do not have permission to delete memory collections.",
+                    )
 
             st.divider()
 
         # Destroy confirmation
-        if collection := st.session_state.get("collection_to_delete"):
+        if has_access("MEMORY", "DELETE", cookie_me) and (collection := st.session_state.get("collection_to_delete")):
             st.warning(f"⚠️ Are you sure you want to permanently destroy collection `{collection}`?")
             col1, col2 = st.columns(2)
             with col1:
@@ -67,11 +83,17 @@ def memory_collections(agent_id: str):
         st.error(f"Error fetching memory collections: {e}")
 
 
-def view_conversation_history(agent_id: str, user_id: str, conversation_id: str):
+def view_conversation_history(agent_id: str, user_id: str, conversation_id: str, cookie_me: Dict | None):
     def pop_state_keys():
         for key in ["conversation_to_change_name", "conversation_to_delete"]:
             if key in st.session_state:
                 st.session_state.pop(key, None)
+
+    run_toast()
+
+    if not has_access("MEMORY", "READ", cookie_me):
+        st.error("You do not have access to view conversation history.")
+        return
 
     client = CheshireCatClient(build_client_configuration())
     st.header("Conversation History")
@@ -91,21 +113,37 @@ def view_conversation_history(agent_id: str, user_id: str, conversation_id: str)
                     st.image(item.image, caption="Image", use_column_width=True)
 
         with col2:
-            if st.button("Delete", key=f"delete_{agent_id}_{user_id}_{conversation_id}"):
-                pop_state_keys()
-                st.session_state["conversation_to_delete"] = True
+            if has_access("MEMORY", "DELETE", cookie_me):
+                if st.button("Delete", key=f"delete_{agent_id}_{user_id}_{conversation_id}"):
+                    pop_state_keys()
+                    st.session_state["conversation_to_delete"] = True
+            else:
+                st.button(
+                    "Delete",
+                    key=f"delete_{agent_id}_{user_id}_{conversation_id}",
+                    disabled=True,
+                    help="You do not have permission to delete this conversation.",
+                )
 
         with col3:
-            if st.button(
+            if has_access("MEMORY", "WRITE", cookie_me):
+                if st.button(
+                        "Change the name",
+                        key=f"change_name_{agent_id}_{user_id}_{conversation_id}",
+                        help="Change the name of this conversation"
+                ):
+                    pop_state_keys()
+                    st.session_state["conversation_to_change_name"] = True
+            else:
+                st.button(
                     "Change the name",
                     key=f"change_name_{agent_id}_{user_id}_{conversation_id}",
-                    help="Change the name of this conversation"
-            ):
-                pop_state_keys()
-                st.session_state["conversation_to_change_name"] = True
+                    disabled=True,
+                    help="You do not have permission to change the conversation name.",
+                )
 
         # Change Name confirmation
-        if st.session_state.get("conversation_to_change_name"):
+        if has_access("MEMORY", "WRITE", cookie_me) and st.session_state.get("conversation_to_change_name"):
             new_conversation_name = st.text_input(
                 "New Conversation Name",
                 value=f"{conversation_id}_change_name",
@@ -145,7 +183,7 @@ def view_conversation_history(agent_id: str, user_id: str, conversation_id: str)
                     st.rerun()
 
         # Delete confirmation
-        if st.session_state.get("conversation_to_delete"):
+        if has_access("MEMORY", "DELETE", cookie_me) and st.session_state.get("conversation_to_delete"):
             st.warning(f"⚠️ Are you sure you want to permanently delete this conversation history?")
             col1, col2 = st.columns(2)
             with col1:
@@ -186,14 +224,29 @@ def memory_management(cookie_me: Dict | None):
 
     # Navigation
     menu_options = {
-        "(Select a menu)": None,
-        "List Memory Collections": "list_collections",
-        "View Conversation History": "view_conversation_history",
+        "List Memory Collections": {
+            "page": "list_collections",
+            "permission": has_access("MEMORY", "READ", cookie_me),
+        },
+        "View Conversation History": {
+            "page": "view_conversation_history",
+            "permission": has_access("MEMORY", "READ", cookie_me),
+        },
     }
-    choice = st.selectbox("Menu", menu_options)
+    if not any(option["permission"] for option in menu_options.values()):
+        st.error("You do not have access to any memory management features.")
+        return
+
+    choices = {
+        name: details["page"]
+        for name, details in menu_options.items()
+        if details["permission"]
+    }
+
+    choice = st.selectbox("Menu", {"(Select a menu)": None} | choices)
 
     if menu_options[choice] == "list_collections":
-        memory_collections(agent_id)
+        memory_collections(agent_id, cookie_me)
         return
 
     if menu_options[choice] == "view_conversation_history":
@@ -205,4 +258,4 @@ def memory_management(cookie_me: Dict | None):
         if not (conversation_id := st.session_state.get("conversation_id")):
             return
 
-        view_conversation_history(agent_id, user_id, conversation_id)
+        view_conversation_history(agent_id, user_id, conversation_id, cookie_me)

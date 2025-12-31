@@ -17,7 +17,7 @@ from app.utils import (
 def list_vector_databases(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
-    if not has_access("VECTOR_DATABASE", "LIST", cookie_me):
+    if not has_access("VECTOR_DATABASE", "READ", cookie_me):
         st.error("You do not have access to view vector databases for this agent.")
         return
 
@@ -48,7 +48,12 @@ def list_vector_databases(agent_id: str, cookie_me: Dict | None):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{vector_database.name}"):
                         edit_vector_database(agent_id, vector_database.name, is_selected)
                 else:
-                    st.button("Edit", key=f"edit_{vector_database.name}_disabled", disabled=True)
+                    st.button(
+                        "Edit",
+                        key=f"edit_{vector_database.name}",
+                        disabled=True,
+                        help="You do not have permission to edit vector databases.",
+                    )
     except Exception as e:
         st.error(f"Error fetching vector databases: {e}")
 
