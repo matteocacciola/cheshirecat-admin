@@ -42,6 +42,9 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
 
 
 def build_agents_select(k: str, cookie_me: Dict | None):
+    if st.session_state.get("agent_id") is not None:
+        return  # already selected
+
     if cookie_me:  # login by credentials
         agents = [agent["agent_name"] for agent in cookie_me.get("agents", [])]
     else:
@@ -59,7 +62,18 @@ def build_agents_select(k: str, cookie_me: Dict | None):
     st.session_state["agent_id"] = choice
 
 
-def build_users_select(k: str, agent_id: str):
+def build_users_select(k: str, agent_id: str, cookie_me: Dict | None):
+    if st.session_state.get("user_id") is not None:
+        return  # already selected
+
+    if cookie_me:  # login by credentials
+        agent_match = next((agent for agent in cookie_me.get("agents", []) if agent.get("agent_id") == agent_id), None)
+        if not agent_match:
+            st.error("Agent not found in user data.")
+            return
+        st.session_state["user_id"] = agent_match.get("user", {}).get("id")
+        return
+
     client = CheshireCatClient(build_client_configuration())
     users = client.users.get_users(agent_id)
 

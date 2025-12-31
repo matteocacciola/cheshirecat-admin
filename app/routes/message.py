@@ -15,7 +15,7 @@ def chat(cookie_me: Dict | None):
     if not (agent_id := st.session_state.get("agent_id")):
         return
 
-    build_users_select("chat", agent_id)
+    build_users_select("chat", agent_id, cookie_me)
 
     if not (user_id := st.session_state.get("user_id")):
         return

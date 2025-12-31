@@ -197,7 +197,7 @@ def memory_management(cookie_me: Dict | None):
         return
 
     if menu_options[choice] == "view_conversation_history":
-        build_users_select("memory", agent_id)
+        build_users_select("memory", agent_id, cookie_me)
         if not (user_id := st.session_state.get("user_id")):
             return
 
