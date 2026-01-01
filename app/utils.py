@@ -70,11 +70,11 @@ def build_agents_select(k: str, cookie_me: Dict | None):
     if st.session_state.get("agent_id") is not None:
         return  # already selected
 
-    _build_agents_select(k, cookie_me, excluded_agents=["system"])
+    _build_agents_select(k, cookie_me)
 
 
 def build_agents_toggle_select(k: str, cookie_me: Dict | None):
-    excluded_agents = ["system"]
+    excluded_agents = []
     if st.session_state.get("agent_id") is not None:
         excluded_agents.append(st.session_state["agent_id"])
     if _build_agents_select(k, cookie_me, excluded_agents=excluded_agents):
