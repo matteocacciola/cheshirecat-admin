@@ -125,7 +125,7 @@ def render_sidebar_navigation(cookie_me: Dict | None):
         "menu_chat": {
             "💬 Chat": {
                 "page": "chat",
-                "allowed": has_access("CHAT", None, cookie_me) and st.session_state.get("agent_id") != "system",
+                "allowed": has_access("CHAT", None, cookie_me),
             },
             "🗂️ Memory & Chats": {
                 "page": "memory",

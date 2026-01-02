@@ -8,6 +8,7 @@ from cheshirecat_python_sdk import CheshireCatClient, Configuration
 from cheshirecat_python_sdk.models.api.factories import FactoryObjectSettingOutput
 from streamlit_js_eval import get_cookie, set_cookie
 
+from app.constants import DEFAULT_SYSTEM_KEY
 from app.env import get_env, get_env_bool
 
 
@@ -154,40 +155,40 @@ def show_overlay_spinner(message="Processing..."):
     spinner_container = st.empty()
     with spinner_container.container():
         st.markdown(f"""
-        <style>
-        .overlay-spinner {{
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 9999;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 18px;
-        }}
-        .spinner {{
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 2s linear infinite;
-            margin-right: 15px;
-        }}
-        @keyframes spin {{
-            0% {{ transform: rotate(0deg); }}
-            100% {{ transform: rotate(360deg); }}
-        }}
-        </style>
-        <div class="overlay-spinner">
-            <div class="spinner"></div>
-            <div>{message}</div>
-        </div>
-        """, unsafe_allow_html=True)
+<style>
+.overlay-spinner {{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 18px;
+}}
+.spinner {{
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 2s linear infinite;
+    margin-right: 15px;
+}}
+@keyframes spin {{
+    0% {{ transform: rotate(0deg); }}
+    100% {{ transform: rotate(360deg); }}
+}}
+</style>
+<div class="overlay-spinner">
+    <div class="spinner"></div>
+    <div>{message}</div>
+</div>
+""", unsafe_allow_html=True)
     return spinner_container
 
 
@@ -267,7 +268,7 @@ def has_access(resource: str, required_role: str | None, cookie_me: Dict | None,
     if not agent_id:
         return False
 
-    if only_admin and agent_id != "system":
+    if only_admin and agent_id != DEFAULT_SYSTEM_KEY:
         return False
 
     try:

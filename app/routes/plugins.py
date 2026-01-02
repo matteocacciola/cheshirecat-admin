@@ -7,7 +7,7 @@ import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 from cheshirecat_python_sdk.models.api.plugins import PluginCollectionOutput
 
-from app.constants import ASSETS_PATH
+from app.constants import ASSETS_PATH, DEFAULT_SYSTEM_KEY
 from app.utils import (
     get_factory_settings,
     run_toast,
@@ -225,7 +225,7 @@ def _list_plugins(cookie_me: Dict | None):
 
     client = CheshireCatClient(build_client_configuration())
 
-    if st.session_state.get("agent_id") == "system":
+    if st.session_state.get("agent_id") == DEFAULT_SYSTEM_KEY:
         _list_plugins_admins(client, search_query, cookie_me)
         return
 
@@ -276,7 +276,7 @@ def _list_plugins_admins(client: CheshireCatClient, search_query: str, cookie_me
 
 
 def _list_plugins_installed(client: CheshireCatClient, plugins: PluginCollectionOutput, cookie_me: Dict | None):
-    core_plugins_ids = client.custom.get_custom("/admins/core_plugins", "system")
+    core_plugins_ids = client.custom.get_custom("/admins/core_plugins", DEFAULT_SYSTEM_KEY)
 
     if not plugins:
         st.info("No plugins found matching your search")
