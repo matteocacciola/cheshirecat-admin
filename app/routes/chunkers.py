@@ -14,7 +14,7 @@ from app.utils import (
 )
 
 
-def list_chunkers(agent_id: str, cookie_me: Dict | None):
+def _list_chunkers(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
     if not has_access("CHUNKER", "READ", cookie_me):
@@ -46,7 +46,7 @@ def list_chunkers(agent_id: str, cookie_me: Dict | None):
             with col3:
                 if has_access("CHUNKER", "WRITE", cookie_me):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{chunker.name}"):
-                        edit_chunker(agent_id, chunker.name, is_selected, cookie_me)
+                        _edit_chunker(agent_id, chunker.name, is_selected, cookie_me)
                 else:
                     st.button(
                         "Edit",
@@ -59,7 +59,7 @@ def list_chunkers(agent_id: str, cookie_me: Dict | None):
 
 
 @st.dialog(title="Edit Chunker", width="large")
-def edit_chunker(agent_id: str, chunker_name: str, is_selected: bool, cookie_me: Dict | None):
+def _edit_chunker(agent_id: str, chunker_name: str, is_selected: bool, cookie_me: Dict | None):
     if not has_access("CHUNKER", "WRITE", cookie_me):
         st.error("You do not have access to edit chunkers for this agent.")
         return
@@ -107,4 +107,4 @@ def chunkers_management(cookie_me: Dict | None):
 
     build_agents_select("chunkers", cookie_me)
     if "agent_id" in st.session_state:
-        list_chunkers(st.session_state["agent_id"], cookie_me)
+        _list_chunkers(st.session_state["agent_id"], cookie_me)

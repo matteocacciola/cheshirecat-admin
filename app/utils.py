@@ -41,44 +41,55 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
     }
 
 
-def _build_agents_select(k: str, cookie_me: Dict | None, excluded_agents: List[str] | None = None) -> bool:
+def _build_agents_options_select(cookie_me: Dict | None, excluded_agents: List[str] | None = None) -> Dict[str, str]:
     if cookie_me:  # login by credentials
         agents = [agent["agent_name"] for agent in cookie_me.get("agents", [])]
     else:  # login by API key
         client = CheshireCatClient(build_client_configuration())
         agents = client.utils.get_agents()
 
-    # Navigation
-    agent_options = {
+    return {
         agent: slugify(agent) for agent in agents if agent not in (excluded_agents or [])
     }
-    if len(agent_options) == 0:
-        return False
-
-    menu_options = {"(Select an Agent)": None} | agent_options
-    choice = st.selectbox("Agents", menu_options, key=f"agent_select_{k}")
-    if menu_options[choice] is None:
-        st.info("Please select an agent to manage.")
-        st.session_state.pop("agent_id", None)
-        return True
-
-    st.session_state["agent_id"] = choice
-    return True
 
 
 def build_agents_select(k: str, cookie_me: Dict | None):
     if st.session_state.get("agent_id") is not None:
         return  # already selected
 
-    _build_agents_select(k, cookie_me)
+    # Navigation
+    agent_options = _build_agents_options_select(cookie_me)
+    if len(agent_options) == 0:
+        return
+
+    menu_options = {"(Select an Agent)": None} | agent_options
+    choice = st.selectbox("Agents", menu_options, key=f"agent_select_{k}")
+    if menu_options[choice] is None:
+        st.info("Please select an agent to manage.")
+        st.session_state.pop("agent_id", None)
+        return
+
+    st.session_state["agent_id"] = choice
 
 
 def build_agents_toggle_select(k: str, cookie_me: Dict | None):
     excluded_agents = []
     if st.session_state.get("agent_id") is not None:
         excluded_agents.append(st.session_state["agent_id"])
-    if _build_agents_select(k, cookie_me, excluded_agents=excluded_agents):
-        st.divider()
+
+    agent_options = _build_agents_options_select(cookie_me, excluded_agents=excluded_agents)
+    if len(agent_options) == 0:
+        return
+
+    menu_options = {"(Select an Agent)": None} | agent_options
+    choice = st.selectbox("Toggle Agent", menu_options, key=f"agent_toggle_select_{k}")
+    st.divider()
+
+    if menu_options[choice] is None:
+        return
+
+    st.session_state["agent_id"] = choice
+    st.rerun()
 
 
 def build_users_select(k: str, agent_id: str, cookie_me: Dict | None):
@@ -247,13 +258,16 @@ def render_json_form(data: Dict, prefix: str = "") -> Dict:
     return result
 
 
-def has_access(resource: str, required_role: str | None, cookie_me: Dict | None) -> bool:
+def has_access(resource: str, required_role: str | None, cookie_me: Dict | None, only_admin: bool | None = False) -> bool:
     """Check if the logged-in user has the required role."""
     if not cookie_me: # logged by API key
         return True
 
     agent_id = st.session_state.get("agent_id")
     if not agent_id:
+        return False
+
+    if only_admin and agent_id != "system":
         return False
 
     try:

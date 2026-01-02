@@ -6,7 +6,7 @@ from cheshirecat_python_sdk import CheshireCatClient
 from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration, run_toast, has_access
 
 
-def create_user(agent_id: str, cookie_me: Dict | None):
+def _create_user(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
     if not has_access("USERS", "WRITE", cookie_me):
@@ -66,7 +66,7 @@ def create_user(agent_id: str, cookie_me: Dict | None):
             spinner_container.empty()
 
 
-def list_users(agent_id: str, cookie_me: Dict | None):
+def _list_users(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
     if not has_access("USERS", "READ", cookie_me):
@@ -93,12 +93,12 @@ def list_users(agent_id: str, cookie_me: Dict | None):
             with col2:
                 # Action buttons
                 if st.button("View", key=f"view_{user.id}"):
-                    get_user(agent_id, user.id, cookie_me)
+                    _get_user(agent_id, user.id, cookie_me)
 
             with col3:
                 if has_access("USERS", "WRITE", cookie_me):
                     if st.button("Update", key=f"update_{user.id}"):
-                        update_user(agent_id, user.id, cookie_me)
+                        _update_user(agent_id, user.id, cookie_me)
                 else:
                     st.button("Update", key=f"update_{user.id}", disabled=True, help="No permission to update")
 
@@ -142,7 +142,7 @@ def list_users(agent_id: str, cookie_me: Dict | None):
 
 
 @st.dialog(title="User Details", width="large")
-def get_user(agent_id: str, user_id: str, cookie_me: Dict | None):
+def _get_user(agent_id: str, user_id: str, cookie_me: Dict | None):
     if not has_access("USERS", "READ", cookie_me):
         st.error("You do not have permission to view user details.")
         return
@@ -158,7 +158,7 @@ def get_user(agent_id: str, user_id: str, cookie_me: Dict | None):
 
 
 @st.dialog(title="Update Details", width="large")
-def update_user(agent_id: str, user_id: str, cookie_me: Dict | None):
+def _update_user(agent_id: str, user_id: str, cookie_me: Dict | None):
     if not has_access("USERS", "WRITE", cookie_me):
         st.error("You do not have permission to update users.")
         return
@@ -244,7 +244,6 @@ def users_management(cookie_me: Dict | None):
             "permission": has_access("USERS", "WRITE", cookie_me),
         },
     }
-
     if not any(option["permission"] for option in menu_options.values() if option["page"]):
         st.error("You do not have access to any user management features.")
         return
@@ -258,8 +257,8 @@ def users_management(cookie_me: Dict | None):
     choice = st.selectbox("Menu", choices)
 
     if menu_options[choice]["page"] == "list_users":
-        list_users(agent_id, cookie_me)
+        _list_users(agent_id, cookie_me)
         return
 
     if menu_options[choice]["page"] == "create_user":
-        create_user(agent_id, cookie_me)
+        _create_user(agent_id, cookie_me)

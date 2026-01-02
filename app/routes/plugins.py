@@ -5,11 +5,11 @@ import time
 from typing import Dict
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
+from cheshirecat_python_sdk.models.api.plugins import PluginCollectionOutput
 
 from app.constants import ASSETS_PATH
 from app.utils import (
     get_factory_settings,
-    build_agents_select,
     run_toast,
     show_overlay_spinner,
     build_client_configuration,
@@ -19,10 +19,10 @@ from app.utils import (
 )
 
 # Pagination settings
-ITEMS_PER_PAGE = 10
+ITEMS_PER_PAGE = 20
 
 
-def render_pagination_controls(section_key: str, current_page: int, total_pages: int):
+def _render_pagination_controls(section_key: str, current_page: int, total_pages: int):
     """Render pagination controls for a section."""
     col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
 
@@ -57,7 +57,7 @@ def render_pagination_controls(section_key: str, current_page: int, total_pages:
             st.rerun()
 
 
-def paginate_items(items: list, section_key: str, items_per_page: int):
+def _paginate_items(items: list, section_key: str, items_per_page: int):
     """Paginate a list of items and return the current page items."""
     # Initialize session state for pagination
     if f"{section_key}_page" not in st.session_state:
@@ -75,7 +75,7 @@ def paginate_items(items: list, section_key: str, items_per_page: int):
     return paginated_items, current_page, total_pages
 
 
-def render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCatClient, cookie_me: Dict | None):
+def _render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCatClient, cookie_me: Dict | None):
     """Render a single installed plugin row."""
     if not has_access("PLUGIN", "READ", cookie_me):
         st.error("You do not have permission to view plugin details.")
@@ -100,11 +100,15 @@ def render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCatC
             st.json(p.model_dump())
 
     with col2:
-        if st.button("View Details", key=f"view_{p.id}"):
+        if (
+                has_access("SYSTEM", "READ", cookie_me, only_admin=True)
+                and st.button("View Details", key=f"view_{p.id}")
+        ):
             view_plugin_details(p.id)
 
     with col3:
-        if has_access("PLUGIN", "WRITE", cookie_me):
+        # Toggle / Untoggle or Uninstall button on a system level
+        if has_access("SYSTEM", "DELETE", cookie_me, only_admin=True):
             if p.id in core_plugins_ids:
                 if p.id != "base_plugin" and st.button(
                         f"{'Untoggle' if p.local_info['active'] else 'Toggle'} Plugin",
@@ -137,7 +141,7 @@ def render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCatC
             manage_plugin(p.id)
 
 
-def render_registry_plugin(registry_plugin, client: CheshireCatClient, cookie_me: Dict | None):
+def _render_registry_plugin(registry_plugin, client: CheshireCatClient, cookie_me: Dict | None):
     """Render a single registry plugin row."""
     if not has_access("PLUGIN", "READ", cookie_me):
         st.error("You do not have permission to view plugin details.")
@@ -180,7 +184,7 @@ def render_registry_plugin(registry_plugin, client: CheshireCatClient, cookie_me
             st.rerun()
 
 
-def render_uninstall_confirmation(client: CheshireCatClient):
+def _render_uninstall_confirmation(client: CheshireCatClient):
     """Render the uninstall confirmation dialog."""
     if not (plugin := st.session_state.get("plugin_to_uninstall")):
         return
@@ -207,47 +211,46 @@ def render_uninstall_confirmation(client: CheshireCatClient):
             st.rerun()
 
 
-def list_plugins(cookie_me: Dict | None):
+def _list_plugins(cookie_me: Dict | None):
     run_toast()
 
     if not has_access("PLUGIN", "READ", cookie_me):
         st.error("You do not have access to view plugins.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
     st.header("Available Plugins")
 
     # Search functionality
     search_query = st.text_input("Search plugins", "")
 
+    client = CheshireCatClient(build_client_configuration())
+
+    if st.session_state.get("agent_id") == "system":
+        _list_plugins_admins(client, search_query, cookie_me)
+        return
+
+    _list_plugins_agents(client, search_query, cookie_me)
+
+
+def _list_plugins_agents(client: CheshireCatClient, search_query: str, cookie_me: Dict | None):
+    if not (agent_id := st.session_state.get("agent_id")):
+        return
+
     try:
-        core_plugins_ids = client.custom.get_custom("/admins/core_plugins", "system")
+        plugins = client.plugins.get_available_plugins(agent_id, plugin_name=search_query)
+        _list_plugins_installed(client, plugins, cookie_me)
+    except Exception as e:
+        st.error(f"Error fetching plugins: {e}")
+
+
+def _list_plugins_admins(client: CheshireCatClient, search_query: str, cookie_me: Dict | None):
+    try:
         plugins = client.admins.get_available_plugins(plugin_name=search_query)
-
-        if not plugins:
-            st.info("No plugins found matching your search")
-            return
-
-        # ==================== INSTALLED PLUGINS ====================
-        st.subheader("Installed plugins")
-        st.markdown(f"Plugins (found {len(plugins.installed)} plugins):")
-
-        if plugins.installed:
-            paginated_installed, current_page, total_pages = paginate_items(
-                plugins.installed, "installed", ITEMS_PER_PAGE
-            )
-
-            # Display paginated installed plugins
-            for p in paginated_installed:
-                render_installed_plugin(p, core_plugins_ids, client, cookie_me)
-
-            # Pagination controls for installed plugins
-            if total_pages > 1:
-                render_pagination_controls("installed", current_page, total_pages)
+        _list_plugins_installed(client, plugins, cookie_me)
 
         # Uninstall confirmation
-        if has_access("PLUGIN", "WRITE", cookie_me):
-            render_uninstall_confirmation(client)
+        if has_access("SYSTEM", "WRITE", cookie_me, only_admin=True):
+            _render_uninstall_confirmation(client)
 
         st.divider()
 
@@ -257,20 +260,44 @@ def list_plugins(cookie_me: Dict | None):
 
         if plugins.registry:
             sorted_registry = sorted(plugins.registry, key=lambda x: x.name)
-            paginated_registry, current_page, total_pages = paginate_items(
+            paginated_registry, current_page, total_pages = _paginate_items(
                 sorted_registry, "registry", ITEMS_PER_PAGE
             )
 
             # Display paginated registry plugins
             for registry_plugin in paginated_registry:
-                render_registry_plugin(registry_plugin, client, cookie_me)
+                _render_registry_plugin(registry_plugin, client, cookie_me)
 
             # Pagination controls for registry plugins
             if total_pages > 1:
-                render_pagination_controls("registry", current_page, total_pages)
-
+                _render_pagination_controls("registry", current_page, total_pages)
     except Exception as e:
         st.error(f"Error fetching plugins: {e}")
+
+
+def _list_plugins_installed(client: CheshireCatClient, plugins: PluginCollectionOutput, cookie_me: Dict | None):
+    core_plugins_ids = client.custom.get_custom("/admins/core_plugins", "system")
+
+    if not plugins:
+        st.info("No plugins found matching your search")
+        return
+
+    # ==================== INSTALLED PLUGINS ====================
+    st.subheader("Installed plugins")
+    st.markdown(f"Plugins (found {len(plugins.installed)} plugins):")
+
+    if plugins.installed:
+        paginated_installed, current_page, total_pages = _paginate_items(
+            plugins.installed, "installed", ITEMS_PER_PAGE
+        )
+
+        # Display paginated installed plugins
+        for p in paginated_installed:
+            _render_installed_plugin(p, core_plugins_ids, client, cookie_me)
+
+        # Pagination controls for installed plugins
+        if total_pages > 1:
+            _render_pagination_controls("installed", current_page, total_pages)
 
 
 @st.dialog(title="Plugin Details", width="large")
@@ -429,7 +456,7 @@ You have to activate the plugin before managing its settings.""")
             st.rerun()
 
 
-def install_plugin_from_file():
+def _install_plugin_from_file():
     client = CheshireCatClient(build_client_configuration())
     st.header("Install Plugin from File")
 
@@ -466,7 +493,7 @@ def install_plugin_from_file():
             st.toast("Please select a file to upload", icon="⚠️")
 
 
-def admin_plugins_management(cookie_me: Dict | None):
+def plugins_management(cookie_me: Dict | None):
     st.title("Plugins Management Dashboard")
 
     # Navigation
@@ -481,13 +508,26 @@ def admin_plugins_management(cookie_me: Dict | None):
         },
         "Install from File": {
             "page": "install_from_file",
-            "permission": has_access("PLUGIN", "WRITE", cookie_me),
+            "permission": has_access("SYSTEM", "WRITE", cookie_me, only_admin=True),
         },
     }
-    choice = st.selectbox("Menu", menu_options)
+    if not any(option["permission"] for option in menu_options.values() if option["page"]):
+        st.error("You do not have access to any plugin management features.")
+        return
+
+    choices = {
+        name: details["page"]
+        for name, details in menu_options.items()
+        if details["permission"]
+    }
+
+    choice = st.selectbox("Menu", choices)
+    if not choice:
+        return
 
     if menu_options[choice]["page"] == "browse_plugins":
-        list_plugins(cookie_me)
+        _list_plugins(cookie_me)
         return
+
     if menu_options[choice]["page"] == "install_from_file":
-        install_plugin_from_file()
+        _install_plugin_from_file()

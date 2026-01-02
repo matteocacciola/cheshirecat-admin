@@ -13,10 +13,10 @@ from app.utils import (
 )
 
 
-def list_embedders(cookie_me: Dict | None):
+def _list_embedders(cookie_me: Dict | None):
     run_toast()
 
-    if not has_access("EMBEDDER", "READ", cookie_me):
+    if not has_access("EMBEDDER", "READ", cookie_me, only_admin=True):
         st.error("You do not have access to view embedders.")
         return
 
@@ -43,9 +43,9 @@ def list_embedders(cookie_me: Dict | None):
                     st.write('<div class="picked">✅</div>', unsafe_allow_html=True)
 
             with col3:
-                if has_access("EMBEDDER", "WRITE", cookie_me):
+                if has_access("EMBEDDER", "WRITE", cookie_me, only_admin=True):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{embedder.name}"):
-                        edit_embedder(embedder.name, is_selected)
+                        _edit_embedder(embedder.name, is_selected)
                 else:
                     st.button(
                         "Edit",
@@ -58,8 +58,8 @@ def list_embedders(cookie_me: Dict | None):
 
 
 @st.dialog(title="Edit Embedder", width="large")
-def edit_embedder(embedder_name: str, is_selected: bool, cookie_me: Dict | None):
-    if not has_access("EMBEDDER", "WRITE", cookie_me):
+def _edit_embedder(embedder_name: str, is_selected: bool, cookie_me: Dict | None):
+    if not has_access("EMBEDDER", "WRITE", cookie_me, only_admin=True):
         st.error("You do not have access to edit embedders.")
         return
 
@@ -103,4 +103,4 @@ def edit_embedder(embedder_name: str, is_selected: bool, cookie_me: Dict | None)
 def embedders_management(cookie_me: Dict | None):
     st.title("Embedders Management Dashboard")
 
-    list_embedders(cookie_me)
+    _list_embedders(cookie_me)

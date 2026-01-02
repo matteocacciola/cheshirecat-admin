@@ -14,7 +14,7 @@ from app.utils import (
 )
 
 
-def list_llms(agent_id: str, cookie_me: Dict | None):
+def _list_llms(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
     if not has_access("LLM", "READ", cookie_me):
@@ -46,7 +46,7 @@ def list_llms(agent_id: str, cookie_me: Dict | None):
             with col3:
                 if has_access("LLM", "WRITE", cookie_me):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{llm.name}"):
-                        edit_llm(agent_id, llm.name, is_selected)
+                        _edit_llm(agent_id, llm.name, is_selected)
                 else:
                     st.button(
                         "Edit",
@@ -59,7 +59,7 @@ def list_llms(agent_id: str, cookie_me: Dict | None):
 
 
 @st.dialog(title="Edit LLM", width="large")
-def edit_llm(agent_id: str, llm_name: str, is_selected: bool, cookie_me: Dict | None):
+def _edit_llm(agent_id: str, llm_name: str, is_selected: bool, cookie_me: Dict | None):
     if not has_access("LLM", "WRITE", cookie_me):
         st.error("You do not have access to edit LLMs for this agent.")
         return
@@ -107,4 +107,4 @@ def llms_management(cookie_me: Dict | None):
 
     build_agents_select("llms", cookie_me)
     if "agent_id" in st.session_state:
-        list_llms(st.session_state["agent_id"], cookie_me)
+        _list_llms(st.session_state["agent_id"], cookie_me)

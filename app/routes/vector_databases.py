@@ -14,7 +14,7 @@ from app.utils import (
 )
 
 
-def list_vector_databases(agent_id: str, cookie_me: Dict | None):
+def _list_vector_databases(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
     if not has_access("VECTOR_DATABASE", "READ", cookie_me):
@@ -46,7 +46,7 @@ def list_vector_databases(agent_id: str, cookie_me: Dict | None):
             with col3:
                 if has_access("VECTOR_DATABASE", "WRITE", cookie_me):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{vector_database.name}"):
-                        edit_vector_database(agent_id, vector_database.name, is_selected)
+                        _edit_vector_database(agent_id, vector_database.name, is_selected)
                 else:
                     st.button(
                         "Edit",
@@ -59,7 +59,7 @@ def list_vector_databases(agent_id: str, cookie_me: Dict | None):
 
 
 @st.dialog(title="Edit Vector Database", width="large")
-def edit_vector_database(agent_id: str, vector_database_name: str, is_selected: bool, cookie_me: Dict | None):
+def _edit_vector_database(agent_id: str, vector_database_name: str, is_selected: bool, cookie_me: Dict | None):
     if not has_access("VECTOR_DATABASE", "WRITE", cookie_me):
         st.error("You do not have access to edit vector databases for this agent.")
         return
@@ -107,4 +107,4 @@ def vector_databases_management(cookie_me: Dict | None):
 
     build_agents_select("vector_databases", cookie_me)
     if "agent_id" in st.session_state:
-        list_vector_databases(st.session_state["agent_id"], cookie_me)
+        _list_vector_databases(st.session_state["agent_id"], cookie_me)

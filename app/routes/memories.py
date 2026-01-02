@@ -14,7 +14,7 @@ from app.utils import (
 )
 
 
-def memory_collections(agent_id: str, cookie_me: Dict | None):
+def _memory_collections(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
     if not has_access("MEMORY", "READ", cookie_me):
@@ -83,7 +83,7 @@ def memory_collections(agent_id: str, cookie_me: Dict | None):
         st.error(f"Error fetching memory collections: {e}")
 
 
-def view_conversation_history(agent_id: str, user_id: str, conversation_id: str, cookie_me: Dict | None):
+def _view_conversation_history(agent_id: str, user_id: str, conversation_id: str, cookie_me: Dict | None):
     def pop_state_keys():
         for key in ["conversation_to_change_name", "conversation_to_delete"]:
             if key in st.session_state:
@@ -252,7 +252,7 @@ def memory_management(cookie_me: Dict | None):
         return
 
     if menu_options[choice]["page"] == "list_collections":
-        memory_collections(agent_id, cookie_me)
+        _memory_collections(agent_id, cookie_me)
         return
 
     if menu_options[choice]["page"] == "view_conversation_history":
@@ -264,4 +264,4 @@ def memory_management(cookie_me: Dict | None):
         if not (conversation_id := st.session_state.get("conversation_id")):
             return
 
-        view_conversation_history(agent_id, user_id, conversation_id, cookie_me)
+        _view_conversation_history(agent_id, user_id, conversation_id, cookie_me)

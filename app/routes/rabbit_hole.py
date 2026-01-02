@@ -10,7 +10,7 @@ import base64
 from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration, has_access, run_toast
 
 
-def upload_files(agent_id: str, cookie_me: Dict | None):
+def _upload_files(agent_id: str, cookie_me: Dict | None):
     def add_file_pair():
         st.session_state["file_metadata_pairs"].append({"file": None, "metadata": "{}"})
 
@@ -126,7 +126,7 @@ def upload_files(agent_id: str, cookie_me: Dict | None):
                     pass  # Ignore cleanup errors
 
 
-def upload_url(agent_id: str, cookie_me: Dict | None):
+def _upload_url(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
     if not has_access("UPLOAD", "WRITE", cookie_me):
@@ -169,7 +169,7 @@ def upload_url(agent_id: str, cookie_me: Dict | None):
             spinner_container.empty()
 
 
-def list_files(agent_id: str, cookie_me: Dict | None):
+def _list_files(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
     if not has_access("MEMORY", "READ", cookie_me):
@@ -313,12 +313,12 @@ def rabbit_hole_management(cookie_me: Dict | None):
     choice = st.selectbox("Menu", choices)
 
     if menu_options[choice]["page"] == "upload_files":
-        upload_files(agent_id, cookie_me)
+        _upload_files(agent_id, cookie_me)
         return
 
     if menu_options[choice]["page"] == "upload_url":
-        upload_url(agent_id, cookie_me)
+        _upload_url(agent_id, cookie_me)
         return
 
     if menu_options[choice]["page"] == "list_files":
-        list_files(agent_id, cookie_me)
+        _list_files(agent_id, cookie_me)

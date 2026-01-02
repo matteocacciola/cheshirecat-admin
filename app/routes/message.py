@@ -5,10 +5,12 @@ from cheshirecat_python_sdk import CheshireCatClient
 from cheshirecat_python_sdk.models.dtos import Message
 
 from app.constants import INTRO_MESSAGE
-from app.utils import build_agents_select, build_users_select, build_client_configuration, has_access
+from app.utils import build_agents_select, build_users_select, build_client_configuration, has_access, run_toast
 
 
 def chat(cookie_me: Dict | None):
+    run_toast()
+
     st.header("Chat with the CheshireCat")
 
     if not has_access("CHAT", "WRITE", cookie_me):

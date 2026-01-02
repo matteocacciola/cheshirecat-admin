@@ -14,7 +14,7 @@ from app.utils import (
 )
 
 
-def list_file_managers(agent_id: str, cookie_me: Dict | None):
+def _list_file_managers(agent_id: str, cookie_me: Dict | None):
     run_toast()
 
     if not has_access("FILE_MANAGER", "READ", cookie_me):
@@ -46,7 +46,7 @@ def list_file_managers(agent_id: str, cookie_me: Dict | None):
             with col3:
                 if has_access("FILE_MANAGER", "WRITE", cookie_me):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{file_manager.name}"):
-                        edit_file_manager(agent_id, file_manager.name, is_selected)
+                        _edit_file_manager(agent_id, file_manager.name, is_selected)
                 else:
                     st.button(
                         "Edit",
@@ -59,7 +59,7 @@ def list_file_managers(agent_id: str, cookie_me: Dict | None):
 
 
 @st.dialog(title="Edit File Manager", width="large")
-def edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool, cookie_me: Dict | None):
+def _edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool, cookie_me: Dict | None):
     if not has_access("FILE_MANAGER", "WRITE", cookie_me):
         st.error("You do not have access to edit file managers for this agent.")
         return
@@ -110,4 +110,4 @@ def file_managers_management(cookie_me: Dict | None):
 
     build_agents_select("file_managers", cookie_me)
     if "agent_id" in st.session_state:
-        list_file_managers(st.session_state["agent_id"], cookie_me)
+        _list_file_managers(st.session_state["agent_id"], cookie_me)

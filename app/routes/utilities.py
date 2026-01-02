@@ -7,10 +7,10 @@ from cheshirecat_python_sdk import CheshireCatClient
 from app.utils import show_overlay_spinner, build_client_configuration, has_access, run_toast
 
 
-def factory_reset(cookie_me: Dict | None):
+def _factory_reset(cookie_me: Dict | None):
     run_toast()
 
-    if not has_access("SYSTEM", "DELETE", cookie_me):
+    if not has_access("SYSTEM", "DELETE", cookie_me, only_admin=True):
         st.error("You do not have permission to perform a factory reset.")
         return
 
@@ -46,7 +46,7 @@ def factory_reset(cookie_me: Dict | None):
         spinner_container.empty()
 
 
-def list_agents(cookie_me: Dict | None):
+def _list_agents(cookie_me: Dict | None):
     def pop_state_keys():
         for key in ["agent_to_clone", "agent_to_reset", "agent_to_destroy", "new_agent_id_input"]:
             if key in st.session_state:
@@ -54,7 +54,7 @@ def list_agents(cookie_me: Dict | None):
 
     run_toast()
 
-    if not has_access("CHESHIRE_CAT", "READ", cookie_me):
+    if not has_access("CHESHIRE_CAT", "READ", cookie_me, only_admin=True):
         st.error("You do not have permission to view agents.")
         return
 
@@ -74,7 +74,7 @@ def list_agents(cookie_me: Dict | None):
             col1.write(f"**Agent ID**: `{agent}`")
 
             with col2:
-                if has_access("CHESHIRE_CAT", "WRITE", cookie_me):
+                if has_access("CHESHIRE_CAT", "WRITE", cookie_me, only_admin=True):
                     if st.button(
                             "Clone",
                             key=f"clone_{agent}",
@@ -91,7 +91,7 @@ def list_agents(cookie_me: Dict | None):
                     )
 
             with col3:
-                if has_access("CHESHIRE_CAT", "WRITE", cookie_me):
+                if has_access("CHESHIRE_CAT", "WRITE", cookie_me, only_admin=True):
                     if st.button(
                             "Reset",
                             key=f"reset_{agent}",
@@ -108,7 +108,7 @@ def list_agents(cookie_me: Dict | None):
                     )
 
             with col4:
-                if has_access("CHESHIRE_CAT", "DELETE", cookie_me):
+                if has_access("CHESHIRE_CAT", "DELETE", cookie_me, only_admin=True):
                     if st.button(
                             "Destroy",
                             key=f"destroy_{agent}",
@@ -127,7 +127,10 @@ def list_agents(cookie_me: Dict | None):
             st.divider()
 
         # Clone confirmation
-        if has_access("CHESHIRE_CAT", "WRITE", cookie_me) and (agent := st.session_state.get("agent_to_clone")):
+        if (
+                has_access("CHESHIRE_CAT", "WRITE", cookie_me, only_admin=True)
+                and (agent := st.session_state.get("agent_to_clone"))
+        ):
             st.warning(f"⚠️ Are you sure you want to clone agent `{agent}`?")
 
             new_agent_id = st.text_input("New Agent ID", value=f"{agent}_clone", key="new_agent_id_input")
@@ -154,7 +157,10 @@ def list_agents(cookie_me: Dict | None):
                     st.rerun()
 
         # Reset confirmation
-        if has_access("CHESHIRE_CAT", "WRITE", cookie_me) and (agent := st.session_state.get("agent_to_reset")):
+        if (
+                has_access("CHESHIRE_CAT", "WRITE", cookie_me, only_admin=True)
+                and (agent := st.session_state.get("agent_to_reset"))
+        ):
             st.warning(f"⚠️ Are you sure you want to permanently reset agent `{agent}`?")
             col1, col2 = st.columns(2)
             with col1:
@@ -178,7 +184,10 @@ def list_agents(cookie_me: Dict | None):
                     st.rerun()
 
         # Destroy confirmation
-        if has_access("CHESHIRE_CAT", "DELETE", cookie_me) and (agent := st.session_state.get("agent_to_destroy")):
+        if (
+                has_access("CHESHIRE_CAT", "DELETE", cookie_me, only_admin=True)
+                and (agent := st.session_state.get("agent_to_destroy"))
+        ):
             st.warning(f"⚠️ Are you sure you want to permanently destroy agent `{agent}`?")
             col1, col2 = st.columns(2)
             with col1:
@@ -204,10 +213,10 @@ def list_agents(cookie_me: Dict | None):
         st.error(f"Error fetching agents: {e}")
 
 
-def create_agent(cookie_me: Dict | None):
+def _create_agent(cookie_me: Dict | None):
     run_toast()
 
-    if not has_access("CHESHIRE_CAT", "WRITE", cookie_me):
+    if not has_access("CHESHIRE_CAT", "WRITE", cookie_me, only_admin=True):
         st.error("You do not have permission to create agents.")
         return
 
@@ -248,15 +257,15 @@ def utilities_management(cookie_me: Dict | None):
         },
         "Agent Management": {
             "page": "agent_management",
-            "permission": has_access("CHESHIRE_CAT", "READ", cookie_me),
+            "permission": has_access("CHESHIRE_CAT", "READ", cookie_me, only_admin=True),
         },
         "Create Agent": {
             "page": "create_agent",
-            "permission": has_access("CHESHIRE_CAT", "WRITE", cookie_me),
+            "permission": has_access("CHESHIRE_CAT", "WRITE", cookie_me, only_admin=True),
         },
         "Factory Reset": {
             "page": "factory_reset",
-            "permission": has_access("SYSTEM", "DELETE", cookie_me),
+            "permission": has_access("SYSTEM", "DELETE", cookie_me, only_admin=True),
         },
     }
     if not any(option["permission"] for option in menu_options.values() if option["page"]):
@@ -272,10 +281,12 @@ def utilities_management(cookie_me: Dict | None):
     choice = st.selectbox("Menu", choices)
 
     if menu_options[choice]["page"] == "agent_management":
-        list_agents(cookie_me)
+        _list_agents(cookie_me)
         return
+
     if menu_options[choice]["page"] == "create_agent":
-        create_agent(cookie_me)
+        _create_agent(cookie_me)
         return
+
     if menu_options[choice]["page"] == "factory_reset":
-        factory_reset(cookie_me)
+        _factory_reset(cookie_me)
