@@ -46,7 +46,7 @@ def _list_llms(agent_id: str, cookie_me: Dict | None):
             with col3:
                 if has_access("LLM", "WRITE", cookie_me):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{llm.name}"):
-                        _edit_llm(agent_id, llm.name, is_selected)
+                        _edit_llm(agent_id, llm.name, is_selected, cookie_me)
                 else:
                     st.button(
                         "Edit",
