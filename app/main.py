@@ -1,3 +1,4 @@
+import json
 import time
 from typing import Dict
 import streamlit as st
@@ -11,9 +12,9 @@ from app.routes.welcome import welcome
 from app.utils import (
     build_client_configuration,
     clear_auth_cookies,
-    get_cookie_me,
     has_access,
-    build_agents_toggle_select,
+    is_system_agent_selected,
+    build_agents_options_select,
 )
 from app.routes.auth_handlers import auth_handlers_management
 from app.routes.chunkers import chunkers_management
@@ -29,6 +30,40 @@ from app.routes.rabbit_hole import rabbit_hole_management
 from app.routes.users import users_management
 from app.routes.utilities import utilities_management
 from app.routes.vector_databases import vector_databases_management
+
+
+def get_cookie_me() -> Dict | None:
+    """Check if the user is logged in by credentials."""
+    cookie_me = get_cookie("me")
+    if not cookie_me:
+        return None
+
+    try:
+        me = json.loads(cookie_me)
+        return me
+    except json.JSONDecodeError as e:
+        print(f"Error decoding 'me' cookie: {e}")
+        return None
+
+
+def build_agents_toggle_select(k: str, cookie_me: Dict | None):
+    excluded_agents = []
+    if st.session_state.get("agent_id") is not None:
+        excluded_agents.append(st.session_state["agent_id"])
+
+    agent_options = build_agents_options_select(cookie_me, excluded_agents=excluded_agents)
+    if len(agent_options) == 0:
+        return
+
+    menu_options = {"(Select an Agent)": None} | agent_options
+    choice = st.selectbox("Toggle Agent", menu_options, key=f"agent_toggle_select_{k}")
+    st.divider()
+
+    if menu_options[choice] is None:
+        return
+
+    st.session_state["agent_id"] = choice
+    st.rerun()
 
 
 def apply_custom_css():
@@ -129,11 +164,11 @@ def render_sidebar_navigation(cookie_me: Dict | None):
             },
             "🗂️ Memory & Chats": {
                 "page": "memory",
-                "allowed": has_access("MEMORY", None, cookie_me),
+                "allowed": has_access("MEMORY", None, cookie_me) and not is_system_agent_selected(),
             },
             "📚 Knowledge Base": {
                 "page": "rag",
-                "allowed": has_access("UPLOAD", None, cookie_me),
+                "allowed": has_access("UPLOAD", None, cookie_me) and not is_system_agent_selected(),
             },
         },
         "menu_users": {
@@ -149,15 +184,15 @@ def render_sidebar_navigation(cookie_me: Dict | None):
             },
             "🧬 AI Models": {
                 "page": "ai_models",
-                "allowed": has_access("LLM", None, cookie_me),
+                "allowed": has_access("LLM", None, cookie_me) and not is_system_agent_selected(),
             },
             "🔐 Authentication Handlers": {
                 "page": "auth_handlers",
-                "allowed": has_access("AUTH_HANDLER", None, cookie_me),
+                "allowed": has_access("AUTH_HANDLER", None, cookie_me) and not is_system_agent_selected(),
             },
             "🔪 Chunkers": {
                 "page": "chunkers",
-                "allowed": has_access("CHUNKER", None, cookie_me),
+                "allowed": has_access("CHUNKER", None, cookie_me) and not is_system_agent_selected(),
             },
             "🧠 Embedders": {
                 "page": "embedders",
@@ -165,11 +200,11 @@ def render_sidebar_navigation(cookie_me: Dict | None):
             },
             "📁 File Handlers": {
                 "page": "file_handlers",
-                "allowed": has_access("FILE_MANAGER", None, cookie_me),
+                "allowed": has_access("FILE_MANAGER", None, cookie_me) and not is_system_agent_selected(),
             },
             "🔗 Vector Databases": {
                 "page": "vector_databases",
-                "allowed": has_access("VECTOR_DATABASE", None, cookie_me),
+                "allowed": has_access("VECTOR_DATABASE", None, cookie_me) and not is_system_agent_selected(),
             }
         },
         "menu_system": {
@@ -239,10 +274,7 @@ For security reasons, please consider creating admin users and logging in by cre
             clear_auth_cookies()
             time.sleep(1)  # Wait for a moment before rerunning
 
-            st.session_state["token"] = None
-            st.session_state["agent_id"] = None
-            st.session_state["status_connection"] = "Warning"
-
+            st.session_state.clear()
             st.rerun()
 
 

@@ -1,3 +1,4 @@
+import base64
 import os
 import tempfile
 import json
@@ -14,12 +15,21 @@ from app.utils import (
     show_overlay_spinner,
     build_client_configuration,
     render_json_form,
-    image_to_base64,
     has_access,
 )
 
 # Pagination settings
 ITEMS_PER_PAGE = 20
+
+
+def _image_to_base64(img_path: str) -> str:
+    """Convert an image file to a base64 string."""
+    if not os.path.exists(img_path) or not os.path.isfile(img_path):
+        raise FileNotFoundError(f"Image file not found: {img_path}")
+
+    with open(img_path, "rb") as img_file:
+        b64_string = base64.b64encode(img_file.read()).decode("utf-8")
+    return b64_string
 
 
 def _render_pagination_controls(section_key: str, current_page: int, total_pages: int):
@@ -87,7 +97,7 @@ def _render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCat
         img = (
             p.thumb
             if p.thumb
-            else f"data:image/png;base64,{image_to_base64(os.path.join(ASSETS_PATH, 'placeholder_plugin.png'))}"
+            else f"data:image/png;base64,{_image_to_base64(os.path.join(ASSETS_PATH, 'placeholder_plugin.png'))}"
         )
         st.markdown(
             f'<img src="{img}" alt="" style="width: 100%; margin-bottom: 2em;" />',
@@ -155,7 +165,7 @@ def _render_registry_plugin(registry_plugin, client: CheshireCatClient, cookie_m
         img = (
             registry_plugin.thumb
             if registry_plugin.thumb
-            else f"data:image/png;base64,{image_to_base64(os.path.join(ASSETS_PATH, 'placeholder_plugin.png'))}"
+            else f"data:image/png;base64,{_image_to_base64(os.path.join(ASSETS_PATH, 'placeholder_plugin.png'))}"
         )
         st.markdown(
             f'<img src="{img}" alt="" style="width: 100%; margin-bottom: 2em;" />',

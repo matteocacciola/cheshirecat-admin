@@ -72,28 +72,29 @@ def _edit_chunker(agent_id: str, chunker_name: str, is_selected: bool, cookie_me
             client.chunker.get_chunker_settings(chunker_name, agent_id),
             is_selected=is_selected
         )
-        with st.form("edit_chunker_form", clear_on_submit=True, enter_to_submit=False):
-            # Render the form
-            edited_settings = render_json_form(chunker_settings)
-            if st.form_submit_button("Save Changes"):
-                try:
-                    spinner_container = show_overlay_spinner("Saving settings...")
-                    client.chunker.put_chunker_settings(
-                        chunker=chunker_name,
-                        agent_id=agent_id,
-                        values=edited_settings,
-                    )
-                    st.session_state["toast"] = {
-                        "message": f"Chunker {chunker_name} updated successfully!", "icon": "✅"
-                    }
-                except json.JSONDecodeError:
-                    st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
-                except Exception as e:
-                    st.session_state["toast"] = {"message": f"Error updating chunker: {e}", "icon": "❌"}
-                finally:
-                    spinner_container.empty()
+        if chunker_settings:
+            with st.form("edit_chunker_form", clear_on_submit=True, enter_to_submit=False):
+                # Render the form
+                edited_settings = render_json_form(chunker_settings)
+                if st.form_submit_button("Save Changes"):
+                    try:
+                        spinner_container = show_overlay_spinner("Saving settings...")
+                        client.chunker.put_chunker_settings(
+                            chunker=chunker_name,
+                            agent_id=agent_id,
+                            values=edited_settings,
+                        )
+                        st.session_state["toast"] = {
+                            "message": f"Chunker {chunker_name} updated successfully!", "icon": "✅"
+                        }
+                    except json.JSONDecodeError:
+                        st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
+                    except Exception as e:
+                        st.session_state["toast"] = {"message": f"Error updating chunker: {e}", "icon": "❌"}
+                    finally:
+                        spinner_container.empty()
 
-                st.rerun()
+                    st.rerun()
     except Exception as e:
         st.error(f"Error fetching chunker settings: {e}")
 

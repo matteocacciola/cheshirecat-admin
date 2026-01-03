@@ -1,29 +1,13 @@
-import base64
 import json
-import os.path
 from typing import Dict, Any, List
 from slugify import slugify
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient, Configuration
 from cheshirecat_python_sdk.models.api.factories import FactoryObjectSettingOutput
-from streamlit_js_eval import get_cookie, set_cookie
+from streamlit_js_eval import set_cookie
 
 from app.constants import DEFAULT_SYSTEM_KEY
 from app.env import get_env, get_env_bool
-
-
-def get_cookie_me() -> Dict | None:
-    """Check if the user is logged in by credentials."""
-    cookie_me = get_cookie("me")
-    if not cookie_me:
-        return None
-
-    try:
-        me = json.loads(cookie_me)
-        return me
-    except json.JSONDecodeError as e:
-        print(f"Error decoding 'me' cookie: {e}")
-        return None
 
 
 def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool) -> Dict[str, Any]:
@@ -42,7 +26,7 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
     }
 
 
-def _build_agents_options_select(cookie_me: Dict | None, excluded_agents: List[str] | None = None) -> Dict[str, str]:
+def build_agents_options_select(cookie_me: Dict | None, excluded_agents: List[str] | None = None) -> Dict[str, str]:
     if cookie_me:  # login by credentials
         agents = [agent["agent_name"] for agent in cookie_me.get("agents", [])]
     else:  # login by API key
@@ -59,7 +43,7 @@ def build_agents_select(k: str, cookie_me: Dict | None):
         return  # already selected
 
     # Navigation
-    agent_options = _build_agents_options_select(cookie_me)
+    agent_options = build_agents_options_select(cookie_me)
     if len(agent_options) == 0:
         return
 
@@ -71,26 +55,6 @@ def build_agents_select(k: str, cookie_me: Dict | None):
         return
 
     st.session_state["agent_id"] = choice
-
-
-def build_agents_toggle_select(k: str, cookie_me: Dict | None):
-    excluded_agents = []
-    if st.session_state.get("agent_id") is not None:
-        excluded_agents.append(st.session_state["agent_id"])
-
-    agent_options = _build_agents_options_select(cookie_me, excluded_agents=excluded_agents)
-    if len(agent_options) == 0:
-        return
-
-    menu_options = {"(Select an Agent)": None} | agent_options
-    choice = st.selectbox("Toggle Agent", menu_options, key=f"agent_toggle_select_{k}")
-    st.divider()
-
-    if menu_options[choice] is None:
-        return
-
-    st.session_state["agent_id"] = choice
-    st.rerun()
 
 
 def build_users_select(k: str, agent_id: str, cookie_me: Dict | None):
@@ -201,50 +165,43 @@ def build_client_configuration():
     )
 
 
-def infer_type(value: Any) -> str:
-    """Infer the appropriate input type for a value."""
-    if isinstance(value, bool):
-        return "boolean"
-    if isinstance(value, int):
-        return "integer"
-    if isinstance(value, float):
-        return "float"
-    if isinstance(value, str):
-        return "string"
-    if isinstance(value, (list, dict)):
-        return "json"
-    return "string"
-
-
-def create_input_field(key: str, value: Any, path: str) -> Any:
-    """Create appropriate Streamlit input field based on value type."""
-    field_type = infer_type(value)
-
-    if field_type == "boolean":
-        return st.checkbox(key, value=value, key=path)
-    if field_type == "integer":
-        return st.number_input(key, value=value, step=1, key=path)
-    if field_type == "float":
-        return st.number_input(key, value=value, step=0.1, format="%.2f", key=path)
-    if field_type == "string":
-        return st.text_input(key, value=value, key=path)
-    if field_type == "json":
-        # For nested structures, show as editable JSON text
-        json_str = json.dumps(value, indent=2)
-        result = st.text_area(key, value=json_str, height=100, key=path)
-        try:
-            return json.loads(result)
-        except:
-            st.error(f"Invalid JSON in field '{key}'")
-            return value
-
-    return value
-
-
 def render_json_form(data: Dict, prefix: str = "") -> Dict:
     """Recursively render form fields for JSON data."""
-    result = {}
+    def infer_type(v: Any) -> str:
+        if isinstance(v, bool):
+            return "boolean"
+        if isinstance(v, int):
+            return "integer"
+        if isinstance(v, float):
+            return "float"
+        if isinstance(v, str):
+            return "string"
+        if isinstance(v, (list, dict)):
+            return "json"
+        return "string"
 
+    def create_input_field(v) -> Any:
+        field_type = infer_type(v)
+        if field_type == "boolean":
+            return st.checkbox(key, value=v, key=path)
+        if field_type == "integer":
+            return st.number_input(key, value=v, step=1, key=path)
+        if field_type == "float":
+            return st.number_input(key, value=v, step=0.1, format="%.2f", key=path)
+        if field_type == "string":
+            return st.text_input(key, value=v, key=path)
+        if field_type == "json":
+            # For nested structures, show as editable JSON text
+            json_str = json.dumps(v, indent=2)
+            r = st.text_area(key, value=json_str, height=100, key=path)
+            try:
+                return json.loads(r)
+            except:
+                st.error(f"Invalid JSON in field '{key}'")
+                return v
+        return v
+
+    result = {}
     for key, value in data.items():
         path = f"{prefix}.{key}" if prefix else key
 
@@ -253,8 +210,8 @@ def render_json_form(data: Dict, prefix: str = "") -> Dict:
             st.subheader(key)
             result[key] = render_json_form(value, path)
         else:
-            # Render single field
-            result[key] = create_input_field(key, value, path)
+            # Render a single field
+            result[key] = create_input_field(value)
 
     return result
 
@@ -289,11 +246,5 @@ def clear_auth_cookies():
     set_cookie("me", "", duration_days=-1)
 
 
-def image_to_base64(img_path: str) -> str:
-    """Convert an image file to a base64 string."""
-    if not os.path.exists(img_path) or not os.path.isfile(img_path):
-        raise FileNotFoundError(f"Image file not found: {img_path}")
-
-    with open(img_path, "rb") as img_file:
-        b64_string = base64.b64encode(img_file.read()).decode("utf-8")
-    return b64_string
+def is_system_agent_selected() -> bool:
+    return st.session_state.get("agent_id") == DEFAULT_SYSTEM_KEY

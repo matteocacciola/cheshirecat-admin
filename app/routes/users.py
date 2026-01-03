@@ -1,9 +1,20 @@
 import time
-from typing import Dict
+from typing import Dict, List
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration, run_toast, has_access
+
+
+def _sanitize_permissions(permissions: Dict[str, List[str]]) -> Dict[str, List[str]]:
+    sanitized_permissions = {}
+    for resource, perms in permissions.items():
+        if len(perms) == 0:
+            continue
+
+        sanitized_permissions[resource] = perms
+
+    return sanitized_permissions
 
 
 def _create_user(agent_id: str, cookie_me: Dict | None):
@@ -53,7 +64,7 @@ def _create_user(agent_id: str, cookie_me: Dict | None):
 
         spinner_container = show_overlay_spinner("Creating user...")
         try:
-            result = client.users.post_user(agent_id, username, password, selected_permissions)
+            result = client.users.post_user(agent_id, username, password, _sanitize_permissions(selected_permissions))
             st.toast(f"User {result.username} created successfully!", icon="✅")
             time.sleep(1)
 
@@ -210,7 +221,7 @@ def _update_user(agent_id: str, user_id: str, cookie_me: Dict | None):
                 user_id=user_id,
                 username=new_username,
                 password=new_password or None,
-                permissions=selected_permissions or None,
+                permissions=_sanitize_permissions(selected_permissions) or None,
             )
             st.session_state["toast"] = {"message": f"User {result.username} updated successfully!", "icon": "✅"}
         except Exception as e:
