@@ -49,7 +49,7 @@ div[data-testid="stStatusWidget"] {display: none;}
 footer {visibility: hidden;}
 """
 
-st.markdown(f"""
+    st.markdown(f"""
 <style>
 {hide_dev_toolbar if get_env('CHESHIRE_CAT_ENVIRONMENT') == 'prod' else ''}
 
