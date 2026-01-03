@@ -45,7 +45,7 @@ def _list_embedders(cookie_me: Dict | None):
             with col3:
                 if has_access("EMBEDDER", "WRITE", cookie_me, only_admin=True):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{embedder.name}"):
-                        _edit_embedder(embedder.name, is_selected)
+                        _edit_embedder(embedder.name, is_selected, cookie_me)
                 else:
                     st.button(
                         "Edit",
