@@ -16,6 +16,7 @@ from app.utils import (
     build_client_configuration,
     render_json_form,
     has_access,
+    build_agents_select,
 )
 
 # Pagination settings
@@ -229,6 +230,10 @@ def _list_plugins(cookie_me: Dict | None):
         return
 
     st.header("Available Plugins")
+
+    build_agents_select("plugins", cookie_me)
+    if "agent_id" not in st.session_state:
+        return
 
     # Search functionality
     search_query = st.text_input("Search plugins", "")
