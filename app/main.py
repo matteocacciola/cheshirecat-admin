@@ -32,7 +32,7 @@ from app.routes.utilities import utilities_management
 from app.routes.vector_databases import vector_databases_management
 
 
-def get_cookie_me() -> Dict | None:
+def _get_cookie_me() -> Dict | None:
     """Check if the user is logged in by credentials."""
     cookie_me = get_cookie("me")
     if not cookie_me:
@@ -46,7 +46,7 @@ def get_cookie_me() -> Dict | None:
         return None
 
 
-def build_agents_toggle_select(k: str, cookie_me: Dict | None):
+def _build_agents_toggle_select(k: str, cookie_me: Dict | None):
     excluded_agents = []
     if st.session_state.get("agent_id") is not None:
         excluded_agents.append(st.session_state["agent_id"])
@@ -62,11 +62,12 @@ def build_agents_toggle_select(k: str, cookie_me: Dict | None):
     if menu_options[choice] is None:
         return
 
+    st.session_state.clear()
     st.session_state["agent_id"] = choice
     st.rerun()
 
 
-def apply_custom_css():
+def _apply_custom_css():
     """Apply custom CSS for enhanced styling"""
     hide_dev_toolbar = """
 /* Hide the ENTIRE development toolbar */
@@ -133,7 +134,7 @@ footer {visibility: hidden;}
 
 
 @st.fragment(run_every=CHECK_INTERVAL)  # Run every 5 seconds
-def check_status():
+def _check_status():
     """Check backend status and display it"""
     current_status = st.session_state.get("status_connection", "Warning")
     try:
@@ -148,7 +149,7 @@ def check_status():
         st.rerun()
 
 
-def render_sidebar_navigation(cookie_me: Dict | None):
+def _render_sidebar_navigation(cookie_me: Dict | None):
     """Render the sidebar navigation menu"""
     st.session_state["selected_page"] = st.session_state.get("selected_page")
     if not st.session_state.get("token"):
@@ -252,7 +253,7 @@ def render_sidebar_navigation(cookie_me: Dict | None):
                 st.divider()
 
         if st.session_state.get("agent_id"):
-            build_agents_toggle_select("sidebar_nav", cookie_me)
+            _build_agents_toggle_select("sidebar_nav", cookie_me)
 
         # System status section
         status_connection = st.session_state.get("status_connection", "Warning")
@@ -280,12 +281,12 @@ For security reasons, please consider creating admin users and logging in by cre
             st.rerun()
 
 
-def main():
+def _main():
     """Main application function"""
     # Apply custom styling
-    apply_custom_css()
+    _apply_custom_css()
 
-    check_status()
+    _check_status()
     if st.session_state["status_connection"] != "Online":
         st.title(WELCOME_MESSAGE)
         st.error("Cheshire Cat backend is offline. Please check your connection.")
@@ -330,10 +331,10 @@ def main():
 
         return
 
-    cookie_me = get_cookie_me()
+    cookie_me = _get_cookie_me()
 
     # Render sidebar navigation and get selected page
-    render_sidebar_navigation(cookie_me)
+    _render_sidebar_navigation(cookie_me)
     current_page = st.session_state["selected_page"]
 
     if current_page == "chat":
@@ -405,4 +406,4 @@ if __name__ == "__main__":
     )
 
     load_dotenv()
-    main()
+    _main()
