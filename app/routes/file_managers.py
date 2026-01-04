@@ -46,7 +46,7 @@ def _list_file_managers(agent_id: str, cookie_me: Dict | None):
             with col3:
                 if has_access("FILE_MANAGER", "WRITE", cookie_me):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{file_manager.name}"):
-                        _edit_file_manager(agent_id, file_manager.name, is_selected)
+                        _edit_file_manager(agent_id, file_manager.name, is_selected, cookie_me)
                 else:
                     st.button(
                         "Edit",

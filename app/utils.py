@@ -62,7 +62,7 @@ def build_users_select(k: str, agent_id: str, cookie_me: Dict | None):
         return  # already selected
 
     if cookie_me:  # login by credentials
-        agent_match = next((agent for agent in cookie_me.get("agents", []) if agent.get("agent_id") == agent_id), None)
+        agent_match = next((agent for agent in cookie_me.get("agents", []) if agent.get("agent_name") == agent_id), None)
         if not agent_match:
             st.error("Agent not found in user data.")
             return

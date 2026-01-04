@@ -46,7 +46,7 @@ def _list_vector_databases(agent_id: str, cookie_me: Dict | None):
             with col3:
                 if has_access("VECTOR_DATABASE", "WRITE", cookie_me):
                     if st.button("Edit" if is_selected else "Select", key=f"edit_{vector_database.name}"):
-                        _edit_vector_database(agent_id, vector_database.name, is_selected)
+                        _edit_vector_database(agent_id, vector_database.name, is_selected, cookie_me)
                 else:
                     st.button(
                         "Edit",
