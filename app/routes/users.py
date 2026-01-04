@@ -3,13 +3,33 @@ from typing import Dict, List
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
+from app.constants import DEFAULT_SYSTEM_KEY
 from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration, run_toast, has_access
 
 
-def _sanitize_permissions(permissions: Dict[str, List[str]]) -> Dict[str, List[str]]:
+def _sanitize_selected_permissions(permissions: Dict[str, List[str]]) -> Dict[str, List[str]]:
     sanitized_permissions = {}
     for resource, perms in permissions.items():
         if len(perms) == 0:
+            continue
+
+        sanitized_permissions[resource] = perms
+
+    return sanitized_permissions
+
+
+def _sanitize_retrieved_permissions(permissions: Dict[str, List[str]], agent_key: str) -> Dict[str, List[str]]:
+    sanitized_permissions = {}
+    is_system = agent_key == DEFAULT_SYSTEM_KEY
+
+    auth_admin_resources = ["SYSTEM", "CHESHIRE_CAT"]
+
+    for resource, perms in permissions.items():
+        # Skip chat for system users or admin resources for non-system users
+        if (
+                (is_system and resource == "CHAT")
+                or (not is_system and resource in auth_admin_resources)
+        ):
             continue
 
         sanitized_permissions[resource] = perms
@@ -37,7 +57,7 @@ def _create_user(agent_id: str, cookie_me: Dict | None):
         # Permissions editor
         st.subheader("Permissions")
 
-        available_permissions = client.auth.get_available_permissions()
+        available_permissions = _sanitize_retrieved_permissions(client.auth.get_available_permissions(), agent_id)
         selected_permissions = {}
         for res, perms in available_permissions.items():
             st.write(f"**{res}**")
@@ -64,7 +84,9 @@ def _create_user(agent_id: str, cookie_me: Dict | None):
 
         spinner_container = show_overlay_spinner("Creating user...")
         try:
-            result = client.users.post_user(agent_id, username, password, _sanitize_permissions(selected_permissions))
+            result = client.users.post_user(
+                agent_id, username, password, _sanitize_selected_permissions(selected_permissions),
+            )
             st.toast(f"User {result.username} created successfully!", icon="✅")
             time.sleep(1)
 
@@ -191,7 +213,7 @@ def _update_user(agent_id: str, user_id: str, cookie_me: Dict | None):
         st.subheader("Permissions")
 
         current_permissions = user_data.permissions
-        available_permissions = client.auth.get_available_permissions()
+        available_permissions = _sanitize_retrieved_permissions(client.auth.get_available_permissions(), agent_id)
 
         selected_permissions = {}
         for res, perms in available_permissions.items():
@@ -221,7 +243,7 @@ def _update_user(agent_id: str, user_id: str, cookie_me: Dict | None):
                 user_id=user_id,
                 username=new_username,
                 password=new_password or None,
-                permissions=_sanitize_permissions(selected_permissions) or None,
+                permissions=_sanitize_selected_permissions(selected_permissions) or None,
             )
             st.session_state["toast"] = {"message": f"User {result.username} updated successfully!", "icon": "✅"}
         except Exception as e:

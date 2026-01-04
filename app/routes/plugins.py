@@ -147,7 +147,7 @@ def _render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCat
         if not has_access("PLUGIN", "WRITE", cookie_me):
             return
 
-        if p.id != "base_plugin" and p.local_info["active"] and st.button("Manage", key=f"manage_{p.id}"):
+        if p.id != "base_plugin" and st.button("Manage", key=f"manage_{p.id}"):
             manage_plugin(p.id)
 
 
