@@ -72,29 +72,34 @@ def _edit_llm(agent_id: str, llm_name: str, is_selected: bool, cookie_me: Dict |
             client.large_language_model.get_large_language_model_settings(llm_name, agent_id),
             is_selected=is_selected
         )
-        if llm_settings:
-            with st.form("edit_llm_form", clear_on_submit=True, enter_to_submit=False):
+        with st.form("edit_llm_form", clear_on_submit=True, enter_to_submit=False):
+            edited_settings = {}
+            if llm_settings:
                 # Render the form
                 edited_settings = render_json_form(llm_settings)
-                if st.form_submit_button("Save Changes"):
-                    try:
-                        spinner_container = show_overlay_spinner("Saving settings...")
-                        client.large_language_model.put_large_language_model_settings(
-                            llm=llm_name,
-                            agent_id=agent_id,
-                            values=edited_settings,
-                        )
-                        st.session_state["toast"] = {
-                            "message": f"LLM {llm_name} updated successfully!", "icon": "✅"
-                        }
-                    except json.JSONDecodeError:
-                        st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
-                    except Exception as e:
-                        st.session_state["toast"] = {"message": f"Error updating LLM: {e}", "icon": "❌"}
-                    finally:
-                        spinner_container.empty()
 
-                    st.rerun()
+            if not edited_settings:
+                st.text("No settings available to edit. Click 'Save' to confirm or 'Back to list' to cancel.")
+
+            if st.form_submit_button("Save"):
+                try:
+                    spinner_container = show_overlay_spinner("Saving settings...")
+                    client.large_language_model.put_large_language_model_settings(
+                        llm=llm_name,
+                        agent_id=agent_id,
+                        values=edited_settings,
+                    )
+                    st.session_state["toast"] = {
+                        "message": f"LLM {llm_name} updated successfully!", "icon": "✅"
+                    }
+                except json.JSONDecodeError:
+                    st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
+                except Exception as e:
+                    st.session_state["toast"] = {"message": f"Error updating LLM: {e}", "icon": "❌"}
+                finally:
+                    spinner_container.empty()
+
+                st.rerun()
     except Exception as e:
         st.error(f"Error fetching LLM settings: {e}")
 
