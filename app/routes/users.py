@@ -22,7 +22,7 @@ def _sanitize_retrieved_permissions(permissions: Dict[str, List[str]], agent_key
     sanitized_permissions = {}
     is_system = agent_key == DEFAULT_SYSTEM_KEY
 
-    auth_admin_resources = ["SYSTEM", "CHESHIRE_CAT"]
+    auth_admin_resources = ["SYSTEM", "CHESHIRE_CAT", "EMBEDDER"]
 
     for resource, perms in permissions.items():
         # Skip chat for system users or admin resources for non-system users
