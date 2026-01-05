@@ -3,7 +3,7 @@ import os
 import tempfile
 import json
 import time
-from typing import Dict
+from typing import Dict, List
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 from cheshirecat_python_sdk.models.api.plugins import PluginCollectionOutput
@@ -68,7 +68,7 @@ def _render_pagination_controls(section_key: str, current_page: int, total_pages
             st.rerun()
 
 
-def _paginate_items(items: list, section_key: str, items_per_page: int):
+def _paginate_items(items: List, section_key: str, items_per_page: int):
     """Paginate a list of items and return the current page items."""
     # Initialize session state for pagination
     if f"{section_key}_page" not in st.session_state:
@@ -86,14 +86,8 @@ def _paginate_items(items: list, section_key: str, items_per_page: int):
     return paginated_items, current_page, total_pages
 
 
-def _render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCatClient, cookie_me: Dict | None):
-    """Render a single installed plugin row."""
-    if not has_access("PLUGIN", "READ", cookie_me):
-        st.error("You do not have permission to view plugin details.")
-        return
-
-    col0, col1, col2, col3, col4 = st.columns([0.05, 0.63, 0.1, 0.12, 0.1])
-
+def _render_installed_plugin_common_parts(col0, col1, p):
+    """Render common parts of an installed plugin row."""
     with col0:
         img = (
             p.thumb
@@ -109,6 +103,29 @@ def _render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCat
     with col1:
         with st.expander(f"Plugin: {p.name} (ID: {p.id})", icon="🔌"):
             st.json(p.model_dump())
+
+
+def _render_installed_plugin_agents(p, cookie_me: Dict | None):
+    """Render a single installed plugin row."""
+    col0, col1, col2 = st.columns([0.05, 0.63, 0.32])
+
+    _render_installed_plugin_common_parts(col0, col1, p)
+
+    with col2:
+        if not has_access("PLUGIN", "WRITE", cookie_me):
+            return
+
+        if p.id != "base_plugin" and st.button("Manage", key=f"manage_{p.id}"):
+            manage_plugin(p.id)
+
+
+def _render_installed_plugin_admins(
+    p, client: CheshireCatClient, cookie_me: Dict | None, core_plugins_ids: List[str] | None = None,
+):
+    """Render a single installed plugin row."""
+    col0, col1, col2, col3 = st.columns([0.05, 0.63, 0.1, 0.22])
+
+    _render_installed_plugin_common_parts(col0, col1, p)
 
     with col2:
         if (
@@ -143,83 +160,6 @@ def _render_installed_plugin(p, core_plugins_ids: list[str], client: CheshireCat
                         help="Uninstall this plugin",
                 ):
                     st.session_state["plugin_to_uninstall"] = p.id
-
-    with col4:
-        if not has_access("PLUGIN", "WRITE", cookie_me):
-            return
-
-        if p.id != "base_plugin" and st.button("Manage", key=f"manage_{p.id}"):
-            manage_plugin(p.id)
-
-
-def _render_registry_plugin(registry_plugin, client: CheshireCatClient, cookie_me: Dict | None):
-    """Render a single registry plugin row."""
-    if not has_access("PLUGIN", "READ", cookie_me):
-        st.error("You do not have permission to view plugin details.")
-        return
-
-    plugin_url = registry_plugin.id
-
-    col0, col1, col2 = st.columns([0.05, 0.65, 0.3])
-
-    with col0:
-        img = (
-            registry_plugin.thumb
-            if registry_plugin.thumb
-            else f"data:image/png;base64,{_image_to_base64(os.path.join(ASSETS_PATH, 'placeholder_plugin.png'))}"
-        )
-        st.markdown(
-            f'<img src="{img}" alt="" style="width: 100%; margin-bottom: 2em;" />',
-            unsafe_allow_html=True
-        )
-        # st.image(img, width="stretch")
-
-    with col1:
-        with st.expander(f"Plugin: {registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
-            st.write(f"**Version**: {registry_plugin.version}")
-            st.write(f"**Author**: {registry_plugin.author_name} - [Profile]({registry_plugin.author_url})")
-            st.write(f"**Description**: {registry_plugin.description or 'No description provided'}")
-            st.write(f"**Plugin URL**: [Link]({plugin_url})")
-            st.write(f"**Tags**: {registry_plugin.tags or 'No tags'}")
-
-    with col2:
-        if has_access("PLUGIN", "WRITE", cookie_me) and st.button("Install Plugin", key=f"install_{registry_plugin.name}"):
-            spinner_container = show_overlay_spinner("Installing plugin...")
-            try:
-                client.admins.post_install_plugin_from_registry(url=plugin_url)
-                st.toast("Installation successful!", icon="✅")
-            except Exception as e:
-                st.toast(f"Error installing plugin: {e}", icon="❌")
-            finally:
-                spinner_container.empty()
-            st.rerun()
-
-
-def _render_uninstall_confirmation(client: CheshireCatClient):
-    """Render the uninstall confirmation dialog."""
-    if not (plugin := st.session_state.get("plugin_to_uninstall")):
-        return
-
-    st.warning(f"⚠️ Are you sure you want to permanently uninstall plugin `{plugin}`?")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("Yes, Uninstall Plugin", type="primary"):
-            spinner_container = show_overlay_spinner("Uninstalling plugin...")
-            try:
-                client.admins.delete_plugin(plugin)
-                st.toast(f"Plugin {plugin} uninstalled successfully!", icon="✅")
-                st.session_state.pop("plugin_to_uninstall", None)
-            except Exception as e:
-                st.error(f"Error uninstalling plugin: {e}", icon="❌")
-            finally:
-                spinner_container.empty()
-            st.rerun()
-
-    with col2:
-        if st.button("Cancel"):
-            st.session_state.pop("plugin_to_uninstall", None)
-            st.rerun()
 
 
 def _list_plugins(cookie_me: Dict | None):
@@ -261,11 +201,34 @@ def _list_plugins_agents(client: CheshireCatClient, search_query: str, cookie_me
 def _list_plugins_admins(client: CheshireCatClient, search_query: str, cookie_me: Dict | None):
     try:
         plugins = client.admins.get_available_plugins(plugin_name=search_query)
-        _list_plugins_installed(client, plugins, cookie_me)
+        core_plugins_ids = client.custom.get_custom("/admins/core_plugins", DEFAULT_SYSTEM_KEY)
+        _list_plugins_installed(client, plugins, cookie_me, core_plugins_ids)
 
         # Uninstall confirmation
-        if has_access("SYSTEM", "WRITE", cookie_me, only_admin=True):
-            _render_uninstall_confirmation(client)
+        if (
+                has_access("SYSTEM", "WRITE", cookie_me, only_admin=True)
+                and (plugin := st.session_state.get("plugin_to_uninstall"))
+        ):
+            st.warning(f"⚠️ Are you sure you want to permanently uninstall plugin `{plugin}`?")
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button("Yes, Uninstall Plugin", type="primary"):
+                    spinner_container = show_overlay_spinner("Uninstalling plugin...")
+                    try:
+                        client.admins.delete_plugin(plugin)
+                        st.toast(f"Plugin {plugin} uninstalled successfully!", icon="✅")
+                        st.session_state.pop("plugin_to_uninstall", None)
+                    except Exception as e:
+                        st.error(f"Error uninstalling plugin: {e}", icon="❌")
+                    finally:
+                        spinner_container.empty()
+                    st.rerun()
+
+            with col2:
+                if st.button("Cancel"):
+                    st.session_state.pop("plugin_to_uninstall", None)
+                    st.rerun()
 
         st.divider()
 
@@ -281,7 +244,42 @@ def _list_plugins_admins(client: CheshireCatClient, search_query: str, cookie_me
 
             # Display paginated registry plugins
             for registry_plugin in paginated_registry:
-                _render_registry_plugin(registry_plugin, client, cookie_me)
+                plugin_url = registry_plugin.id
+
+                col0, col1, col2 = st.columns([0.05, 0.65, 0.3])
+
+                with col0:
+                    img = (
+                        registry_plugin.thumb
+                        if registry_plugin.thumb
+                        else f"data:image/png;base64,{_image_to_base64(os.path.join(ASSETS_PATH, 'placeholder_plugin.png'))}"
+                    )
+                    st.markdown(
+                        f'<img src="{img}" alt="" style="width: 100%; margin-bottom: 2em;" />',
+                        unsafe_allow_html=True
+                    )
+                    # st.image(img, width="stretch")
+
+                with col1:
+                    with st.expander(f"Plugin: {registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
+                        st.write(f"**Version**: {registry_plugin.version}")
+                        st.write(f"**Author**: {registry_plugin.author_name} - [Profile]({registry_plugin.author_url})")
+                        st.write(f"**Description**: {registry_plugin.description or 'No description provided'}")
+                        st.write(f"**Plugin URL**: [Link]({plugin_url})")
+                        st.write(f"**Tags**: {registry_plugin.tags or 'No tags'}")
+
+                with col2:
+                    if has_access("PLUGIN", "WRITE", cookie_me) and st.button("Install Plugin",
+                                                                              key=f"install_{registry_plugin.name}"):
+                        spinner_container = show_overlay_spinner("Installing plugin...")
+                        try:
+                            client.admins.post_install_plugin_from_registry(url=plugin_url)
+                            st.toast("Installation successful!", icon="✅")
+                        except Exception as e:
+                            st.toast(f"Error installing plugin: {e}", icon="❌")
+                        finally:
+                            spinner_container.empty()
+                        st.rerun()
 
             # Pagination controls for registry plugins
             if total_pages > 1:
@@ -290,9 +288,12 @@ def _list_plugins_admins(client: CheshireCatClient, search_query: str, cookie_me
         st.error(f"Error fetching plugins: {e}")
 
 
-def _list_plugins_installed(client: CheshireCatClient, plugins: PluginCollectionOutput, cookie_me: Dict | None):
-    core_plugins_ids = client.custom.get_custom("/admins/core_plugins", DEFAULT_SYSTEM_KEY)
-
+def _list_plugins_installed(
+    client: CheshireCatClient,
+    plugins: PluginCollectionOutput,
+    cookie_me: Dict | None,
+    core_plugins_ids: List[str] | None = None,
+):
     if not plugins:
         st.info("No plugins found matching your search")
         return
@@ -308,7 +309,10 @@ def _list_plugins_installed(client: CheshireCatClient, plugins: PluginCollection
 
         # Display paginated installed plugins
         for p in paginated_installed:
-            _render_installed_plugin(p, core_plugins_ids, client, cookie_me)
+            if st.session_state.get("agent_id") == DEFAULT_SYSTEM_KEY:
+                _render_installed_plugin_admins(p, client, cookie_me, core_plugins_ids)
+            else:
+                _render_installed_plugin_agents(p, cookie_me)
 
         # Pagination controls for installed plugins
         if total_pages > 1:
