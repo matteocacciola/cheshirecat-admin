@@ -39,8 +39,8 @@ def build_agents_options_select(cookie_me: Dict | None, excluded_agents: List[st
 
 
 def build_agents_select(k: str, cookie_me: Dict | None):
-    if st.session_state.get("agent_id") is not None:
-        return  # already selected
+    if st.session_state.get("agent_id") is not None and cookie_me is not None:
+        return  # already selected and logged by credentials
 
     # Navigation
     agent_options = build_agents_options_select(cookie_me)

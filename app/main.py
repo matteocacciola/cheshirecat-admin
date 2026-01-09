@@ -8,14 +8,7 @@ from streamlit_js_eval import get_cookie
 
 from app.constants import CHECK_INTERVAL, WELCOME_MESSAGE
 from app.env import get_env
-from app.routes.welcome import welcome
-from app.utils import (
-    build_client_configuration,
-    clear_auth_cookies,
-    has_access,
-    is_system_agent_selected,
-    build_agents_options_select,
-)
+from app.routes.agentic_workflows import agentic_workflows_management
 from app.routes.auth_handlers import auth_handlers_management
 from app.routes.chunkers import chunkers_management
 from app.routes.embedders import embedders_management
@@ -30,6 +23,14 @@ from app.routes.rabbit_hole import rabbit_hole_management
 from app.routes.users import users_management
 from app.routes.utilities import utilities_management
 from app.routes.vector_databases import vector_databases_management
+from app.utils import (
+    build_client_configuration,
+    clear_auth_cookies,
+    has_access,
+    is_system_agent_selected,
+    build_agents_options_select,
+)
+from app.routes.welcome import welcome
 
 
 def _get_cookie_me() -> Dict | None:
@@ -186,6 +187,10 @@ def _render_sidebar_navigation(cookie_me: Dict | None):
             "🧬 AI Models": {
                 "page": "ai_models",
                 "allowed": has_access("LLM", None, cookie_me) and not is_system_agent_selected(),
+            },
+            "⚡ Agentic Workflows": {
+                "page": "agentic_workflows",
+                "allowed": has_access("AGENTIC_WORKFLOW", None, cookie_me) and not is_system_agent_selected(),
             },
             "🔐 Authentication Handlers": {
                 "page": "auth_handlers",
@@ -346,6 +351,10 @@ def _main():
 
     if current_page == "ai_models":
         llms_management(cookie_me)
+        return
+
+    if current_page == "agentic_workflows":
+        agentic_workflows_management(cookie_me)
         return
 
     if current_page == "auth_handlers":
