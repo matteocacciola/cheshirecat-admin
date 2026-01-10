@@ -35,7 +35,7 @@ def _image_to_base64(img_path: str) -> str:
 
 def _render_pagination_controls(section_key: str, current_page: int, total_pages: int):
     """Render pagination controls for a section."""
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+    col0, col1, col2, col3, col4, col5 = st.columns([0.15, 0.08, 0.09, 0.23, 0.15, 0.3])
 
     with col1:
         if st.button("← Previous", key=f"{section_key}_prev", disabled=current_page == 0):
