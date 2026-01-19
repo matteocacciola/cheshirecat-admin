@@ -1,3 +1,4 @@
+import base64
 import time
 from typing import Dict
 import streamlit as st
@@ -105,7 +106,7 @@ def _view_conversation_history(agent_id: str, user_id: str, conversation_id: str
             st.info("No conversation history found for this user and conversation")
             return
 
-        col1, col2, col3 = st.columns([0.6, 0.2, 0.2])
+        col1, col2, col3, col4 = st.columns([0.7, 0.07, 0.13, 0.1])
         with col1:
             for item in history.history:
                 st.write(f"**{item.who}**: {item.content.text}")
@@ -140,6 +141,23 @@ def _view_conversation_history(agent_id: str, user_id: str, conversation_id: str
                     key=f"change_name_{agent_id}_{user_id}_{conversation_id}",
                     disabled=True,
                     help="You do not have permission to change the conversation name.",
+                )
+
+        with col4:
+            if has_access("MEMORY", "READ", cookie_me):
+                if st.button(
+                        "View files",
+                        key=f"edit_files_{agent_id}_{user_id}_{conversation_id}",
+                        help="Change the name of this conversation"
+                ):
+                    pop_state_keys()
+                    _edit_chat_files(agent_id, conversation_id, cookie_me)
+            else:
+                st.button(
+                    "View files",
+                    key=f"edit_files_{agent_id}_{user_id}_{conversation_id}",
+                    disabled=True,
+                    help="You do not have permission to view the files in this conversation.",
                 )
 
         # Change Name confirmation
@@ -212,6 +230,93 @@ def _view_conversation_history(agent_id: str, user_id: str, conversation_id: str
                     st.rerun()
     except Exception as e:
         st.error(f"Error fetching conversation history: {e}")
+
+
+@st.dialog(title="Edit Vector Database", width="large")
+def _edit_chat_files(agent_id: str, conversation_id: str, cookie_me: Dict | None):
+    def get_file_content(file_name):
+        st.toast("Download started!", icon="✅")
+        try:
+            response = client.file_manager.get_file(agent_id, file_name)
+            return response.content
+        except Exception as ex:
+            st.toast(f"Error downloading file: {ex}", icon="❌")
+            return None
+
+    if not has_access("MEMORY", "READ", cookie_me):
+        st.error("You do not have access to list the files in this conversation.")
+        return
+
+    client = CheshireCatClient(build_client_configuration())
+    try:
+        files = client.file_manager.get_file_manager_attributes(agent_id, conversation_id)
+        if not files.files:
+            st.info("No files found in this conversation.")
+            return
+
+        for file in files.files:
+            col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
+
+            with col1:
+                chunks = client.memory.get_memory_points(
+                    agent_id=agent_id,
+                    collection="episodic",
+                    metadata={"source": file.name, "chat_id": conversation_id},
+                )
+
+                with st.expander(f"{file.name} ({file.size} bytes)"):
+                    st.write(f"**Name**: {file.name}")
+                    st.write(f"**Size**: {file.size}")
+                    st.write(f"**Last modified**: {file.last_modified}")
+                    st.write(f"**Chunks**: {len(chunks.points)}")
+
+            with col2:
+                st.download_button(
+                    label="Download",
+                    data=get_file_content(file.name),
+                    file_name=file.name,
+                    key=file.name
+                )
+            with col3:
+                if has_access("MEMORY", "DELETE", cookie_me):
+                    if st.button("Delete", key=f"delete_{file.name}", help="Permanently delete this file"):
+                        st.session_state["file_to_delete"] = file
+                else:
+                    st.button("Delete", key=f"delete_{file.name}", disabled=True, help="You do not have permission to delete files")
+
+        # Delete confirmation
+        if not (file := st.session_state.get("file_to_delete")):
+            return
+
+        if not has_access("MEMORY", "DELETE", cookie_me):
+            st.error("You do not have permission to delete files.")
+            st.session_state.pop("file_to_delete", None)
+            return
+
+        st.warning(f"⚠️ Are you sure you want to permanently delete file `{file.name}`?")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Yes, Delete File", type="primary"):
+                try:
+                    spinner_container = show_overlay_spinner(f"Deleting file {file.name}...")
+
+                    client.file_manager.delete_file(agent_id, file.name, chat_id=conversation_id)
+                    st.toast(f"File {file.name} deleted successfully!", icon="✅")
+                    st.session_state.pop("file_to_delete", None)
+                    time.sleep(1)  # Wait for a moment before rerunning
+                except Exception as e:
+                    st.error(f"Error deleting admin: {e}", icon="❌")
+                finally:
+                    spinner_container.empty()
+
+                st.rerun()
+        with col2:
+            if st.button("Cancel"):
+                st.session_state.pop("file_to_delete", None)
+                st.rerun()
+    except Exception as e:
+        st.toast(f"Error fetching files: {e}", icon="❌")
 
 
 # Streamlit UI

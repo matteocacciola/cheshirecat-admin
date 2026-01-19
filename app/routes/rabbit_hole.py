@@ -170,6 +170,15 @@ def _upload_url(agent_id: str, cookie_me: Dict | None):
 
 
 def _list_files(agent_id: str, cookie_me: Dict | None):
+    def get_file_content(file_name):
+        st.toast("Download started!", icon="✅")
+        try:
+            response = client.file_manager.get_file(agent_id, file_name)
+            return response.content
+        except Exception as ex:
+            st.toast(f"Error downloading file: {ex}", icon="❌")
+            return None
+
     run_toast()
 
     if not has_access("MEMORY", "READ", cookie_me):
@@ -187,7 +196,7 @@ def _list_files(agent_id: str, cookie_me: Dict | None):
         st.write(f"**Total size of uploaded files**: {files.size} bytes")
 
         for file in files.files:
-            col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
+            col1, col2, col3 = st.columns([0.8, 0.1, 0.1])
 
             with col1:
                 chunks = client.memory.get_memory_points(
@@ -203,32 +212,12 @@ def _list_files(agent_id: str, cookie_me: Dict | None):
                     st.write(f"**Chunks**: {len(chunks.points)}")
 
             with col2:
-                if st.button("Download", key=file.name):
-                    try:
-                        response = client.file_manager.get_file(agent_id, file.name)
-
-                        # Convert to base64 for JavaScript
-                        file_data = base64.b64encode(response.content).decode()
-
-                        # Inject JavaScript to trigger download
-                        st.components.v1.html(
-                            f"""
-                            <script>
-                            function downloadFile() {{
-                                const link = document.createElement('a');
-                                link.href = 'data:application/octet-stream;base64,{file_data}';
-                                link.download = '{file.name}';
-                                link.click();
-                            }}
-                            downloadFile();
-                            </script>
-                            """,
-                            height=0
-                        )
-                        st.toast("Download started!", icon="✅")
-                    except Exception as e:
-                        st.toast(f"Error downloading file: {e}", icon="❌")
-
+                st.download_button(
+                    label="Download",
+                    data=get_file_content(file.name),
+                    file_name=file.name,
+                    key=file.name
+                )
             with col3:
                 if has_access("MEMORY", "DELETE", cookie_me):
                     if st.button("Delete", key=f"delete_{file.name}", help="Permanently delete this file"):
