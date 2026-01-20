@@ -234,7 +234,7 @@ def _view_conversation_history(agent_id: str, user_id: str, conversation_id: str
 
 @st.dialog(title="Edit Vector Database", width="large")
 def _edit_chat_files(agent_id: str, conversation_id: str, cookie_me: Dict | None):
-    def get_file_content(file_name):
+    def download_file(file_name):
         try:
             response = client.file_manager.get_file(agent_id, file_name)
             return response.content
@@ -270,13 +270,27 @@ def _edit_chat_files(agent_id: str, conversation_id: str, cookie_me: Dict | None
                     st.write(f"**Chunks**: {len(chunks.points)}")
 
             with col2:
-                if st.download_button(
-                    label="Download",
-                    data=get_file_content(file.name),
-                    file_name=file.name,
-                    key=file.name
-                ):
-                    st.toast("Download started!", icon="✅")
+                # Use a regular button instead of download_button
+                if st.button("Download", key=f"download_{file.name}"):
+                    # Only fetch the file content when button is clicked
+                    file_content = download_file(file.name)
+                    if file_content:
+                        # Store in session state to trigger download
+                        st.session_state[f"download_content_{file.name}"] = file_content
+                        st.toast("Download started!", icon="✅")
+                        st.rerun()
+
+                # Check if we have content ready to download
+                if f"download_content_{file.name}" in st.session_state:
+                    # Create the actual download button with the fetched content
+                    st.download_button(
+                        label="Click to save",
+                        data=st.session_state[f"download_content_{file.name}"],
+                        file_name=file.name,
+                        key=f"save_{file.name}"
+                    )
+                    # Clear the session state after download
+                    st.session_state.pop(f"download_content_{file.name}", None)
 
             with col3:
                 if has_access("MEMORY", "DELETE", cookie_me):
