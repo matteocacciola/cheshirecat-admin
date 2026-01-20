@@ -171,7 +171,6 @@ def _upload_url(agent_id: str, cookie_me: Dict | None):
 
 def _list_files(agent_id: str, cookie_me: Dict | None):
     def get_file_content(file_name):
-        st.toast("Download started!", icon="✅")
         try:
             response = client.file_manager.get_file(agent_id, file_name)
             return response.content
@@ -212,12 +211,14 @@ def _list_files(agent_id: str, cookie_me: Dict | None):
                     st.write(f"**Chunks**: {len(chunks.points)}")
 
             with col2:
-                st.download_button(
+                if st.download_button(
                     label="Download",
                     data=get_file_content(file.name),
                     file_name=file.name,
                     key=file.name
-                )
+                ):
+                    st.toast("Download started!", icon="✅")
+
             with col3:
                 if has_access("MEMORY", "DELETE", cookie_me):
                     if st.button("Delete", key=f"delete_{file.name}", help="Permanently delete this file"):
