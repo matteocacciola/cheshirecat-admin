@@ -1,10 +1,9 @@
 import time
 from typing import Dict
-
 import streamlit as st
 from cheshirecat_python_sdk import CheshireCatClient
 
-from app.utils import show_overlay_spinner, build_client_configuration, has_access, run_toast
+from app.utils import show_overlay_spinner, build_client_configuration, has_access, run_toast, cache_cookie_me
 
 
 def _factory_reset(cookie_me: Dict | None):
@@ -144,6 +143,8 @@ def _list_agents(cookie_me: Dict | None):
                         if result.cloned:
                             st.toast(f"Agent {agent} cloned successfully!", icon="✅")
                             st.session_state.pop("agent_to_clone", None)
+                            if cookie_me:
+                                cache_cookie_me()
                             time.sleep(1)  # Wait for a moment before rerunning
                             st.rerun()
                         else:
@@ -198,6 +199,8 @@ def _list_agents(cookie_me: Dict | None):
                         if result.deleted_settings and result.deleted_memories:
                             st.toast(f"Agent {agent} destroyed successfully!", icon="✅")
                             st.session_state.pop("agent_to_destroy", None)
+                            if cookie_me:
+                                cache_cookie_me()
                             time.sleep(1)  # Wait for a moment before rerunning
                             st.rerun()
                         else:
@@ -238,6 +241,10 @@ def _create_agent(cookie_me: Dict | None):
             result = client.utils.post_agent_create(agent_id=agent_id)
             if result.created:
                 st.toast(f"Agent {agent_id} created successfully!", icon="✅")
+                if cookie_me:
+                    cache_cookie_me()
+                    time.sleep(1)  # Wait for a moment before rerunning
+                    st.rerun()
             else:
                 st.toast(f"Failed to create agent {agent_id}", icon="❌")
         except Exception as e:

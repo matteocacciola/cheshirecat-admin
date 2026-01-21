@@ -248,3 +248,19 @@ def clear_auth_cookies():
 
 def is_system_agent_selected() -> bool:
     return st.session_state.get("agent_id") == DEFAULT_SYSTEM_KEY
+
+
+def cache_cookie_me():
+    client = CheshireCatClient(build_client_configuration())
+    res = client.auth.me(st.session_state.get("token"))
+    me_data = res.model_dump()
+
+    # Store in session state for immediate access
+    st.session_state["me"] = me_data
+
+    # Also update cookie for persistence across sessions
+    set_cookie(
+        "me",
+        json.dumps(me_data),
+        duration_days=int(get_env("CHESHIRE_CAT_JWT_EXPIRE_MINUTES")) / (60 * 24),
+    )

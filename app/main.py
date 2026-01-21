@@ -35,12 +35,18 @@ from app.routes.welcome import welcome
 
 def _get_cookie_me() -> Dict | None:
     """Check if the user is logged in by credentials."""
+    # First check session state (immediate updates)
+    if "me" in st.session_state:
+        return st.session_state["me"]
+
+    # Fall back to cookie (for page refreshes/new sessions)
     cookie_me = get_cookie("me")
     if not cookie_me:
         return None
 
     try:
         me = json.loads(cookie_me)
+        st.session_state["me"] = me  # Cache it
         return me
     except json.JSONDecodeError as e:
         print(f"Error decoding 'me' cookie: {e}")

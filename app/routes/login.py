@@ -1,11 +1,10 @@
-import json
 import time
 import streamlit as st
 from streamlit_js_eval import set_cookie
 from cheshirecat_python_sdk import CheshireCatClient
 
 from app.env import get_env
-from app.utils import show_overlay_spinner, build_client_configuration, clear_auth_cookies
+from app.utils import show_overlay_spinner, build_client_configuration, clear_auth_cookies, cache_cookie_me
 
 
 def login_page():
@@ -27,20 +26,15 @@ def login_page():
 
         spinner_container = show_overlay_spinner(f"Authenticating {username}...")
         try:
-            exp_minutes = int(get_env("CHESHIRE_CAT_JWT_EXPIRE_MINUTES"))
-            expiration = exp_minutes / (60 * 24)
-
             client = CheshireCatClient(build_client_configuration())
             token_response = client.auth.token(username, password)
             token = token_response.access_token
 
             st.session_state["token"] = token
-            set_cookie("token", token, duration_days=expiration)
+            set_cookie("token", token, duration_days=int(get_env("CHESHIRE_CAT_JWT_EXPIRE_MINUTES")) / (60 * 24))
 
             # now, trigger /me endpoint to cache user info
-            res = client.auth.me(token)
-            set_cookie("me", json.dumps(res.model_dump()), duration_days=expiration)
-
+            cache_cookie_me()
             st.toast("Login successful!", icon="✅")
 
             spinner_container.empty()
