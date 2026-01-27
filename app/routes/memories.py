@@ -173,7 +173,7 @@ def _view_conversation_history(agent_id: str, user_id: str, conversation_id: str
                 if st.button("Change the Name", type="primary"):
                     try:
                         with st.spinner(f"Changing the name of the conversation {conversation_id}..."):
-                            result = client.conversation.post_conversation_name(
+                            result = client.conversation.put_conversation_attributes(
                                 name=new_conversation_name,
                                 agent_id=agent_id,
                                 user_id=user_id,

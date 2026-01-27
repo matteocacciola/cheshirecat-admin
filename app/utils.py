@@ -89,14 +89,21 @@ def build_conversations_select(k: str, agent_id: str, user_id: str):
 
     if not conversations:
         st.info("No conversations found for this user.")
+        st.session_state.pop("user_id", None)
+        st.session_state.pop("conversation_id", None)
+        return
+
+    useful_conversations = {
+        conversation.name: conversation.chat_id for conversation in conversations if conversation.num_messages
+    }
+    if not useful_conversations:
+        st.info("No conversations found for this user.")
+        st.session_state.pop("user_id", None)
         st.session_state.pop("conversation_id", None)
         return
 
     # Navigation
-    menu_options = (
-        {"(Select a Conversation)": None} |
-        {conversation.name: conversation.chat_id for conversation in conversations}
-    )
+    menu_options = {"(Select a Conversation)": None} | useful_conversations
     choice = st.selectbox("Conversations", menu_options, key=f"conversation_select_{k}")
     if menu_options[choice] is None:
         st.info("Please select a conversation to manage.")
