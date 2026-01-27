@@ -172,7 +172,7 @@ def build_client_configuration():
     )
 
 
-def render_json_form(data: Dict, prefix: str = "") -> Dict:
+def render_json_form(data: Dict, prefix: str = "", special_keys: List[str] | None = None) -> Dict:
     """Recursively render form fields for JSON data."""
     def infer_type(v: Any) -> str:
         if isinstance(v, bool):
@@ -208,14 +208,19 @@ def render_json_form(data: Dict, prefix: str = "") -> Dict:
                 return v
         return v
 
+    special_keys = special_keys or []
     result = {}
     for key, value in data.items():
         path = f"{prefix}.{key}" if prefix else key
 
-        if isinstance(value, dict) and not any(isinstance(v, (list, dict)) for v in value.values()):
+        if (
+                isinstance(value, dict)
+                and not any(isinstance(v, (list, dict)) for v in value.values())
+                and key not in special_keys
+        ):
             # Simple dict - render fields inline
             st.subheader(key)
-            result[key] = render_json_form(value, path)
+            result[key] = render_json_form(value, path, special_keys=special_keys)
         else:
             # Render a single field
             result[key] = create_input_field(value)
