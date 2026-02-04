@@ -1,3 +1,4 @@
+import json
 import time
 from typing import Dict
 import streamlit as st
@@ -69,22 +70,34 @@ def _list_agents(cookie_me: Dict | None):
 
         st.write("### Existing Agents")
         for agent in agents:
-            col1, col2, col3, col4 = st.columns(4)
-            col1.write(f"**Agent ID**: `{agent}`")
+            col0, col1, col2, col3, col4 = st.columns(5)
+            col0.write(f"**Agent ID**: `{agent.agent_id}`")
+
+            with col1:
+                if has_access("CHESHIRE_CAT", "WRITE", cookie_me, only_admin=True):
+                    if st.button("Update", key=f"update_{agent.agent_id}"):
+                        _update_agent(agent.agent_id, agent.metadata, cookie_me)
+                else:
+                    st.button(
+                        "Update",
+                        key=f"update_{agent.agent_id}",
+                        help="You do not have permission to update agents",
+                        disabled=True
+                    )
 
             with col2:
                 if has_access("CHESHIRE_CAT", "WRITE", cookie_me, only_admin=True):
                     if st.button(
                             "Clone",
-                            key=f"clone_{agent}",
+                            key=f"clone_{agent.agent_id}",
                             help="Clone this agent and all associated data"
                     ):
                         pop_state_keys()
-                        st.session_state["agent_to_clone"] = agent
+                        st.session_state["agent_to_clone"] = agent.agent_id
                 else:
                     st.button(
                         "Clone",
-                        key=f"clone_{agent}",
+                        key=f"clone_{agent.agent_id}",
                         help="You do not have permission to clone agents",
                         disabled=True
                     )
@@ -93,15 +106,15 @@ def _list_agents(cookie_me: Dict | None):
                 if has_access("CHESHIRE_CAT", "WRITE", cookie_me, only_admin=True):
                     if st.button(
                             "Reset",
-                            key=f"reset_{agent}",
+                            key=f"reset_{agent.agent_id}",
                             help="Reset this agent settings and memories"
                     ):
                         pop_state_keys()
-                        st.session_state["agent_to_reset"] = agent
+                        st.session_state["agent_to_reset"] = agent.agent_id
                 else:
                     st.button(
                         "Reset",
-                        key=f"reset_{agent}",
+                        key=f"reset_{agent.agent_id}",
                         help="You do not have permission to reset agents",
                         disabled=True
                     )
@@ -110,15 +123,15 @@ def _list_agents(cookie_me: Dict | None):
                 if has_access("CHESHIRE_CAT", "DELETE", cookie_me, only_admin=True):
                     if st.button(
                             "Destroy",
-                            key=f"destroy_{agent}",
+                            key=f"destroy_{agent.agent_id}",
                             help="Permanently destroy this agent and all associated data"
                     ):
                         pop_state_keys()
-                        st.session_state["agent_to_destroy"] = agent
+                        st.session_state["agent_to_destroy"] = agent.agent_id
                 else:
                     st.button(
                         "Destroy",
-                        key=f"destroy_{agent}",
+                        key=f"destroy_{agent.agent_id}",
                         help="You do not have permission to destroy agents",
                         disabled=True
                     )
@@ -228,6 +241,11 @@ def _create_agent(cookie_me: Dict | None):
 
     with st.form("create_agent_form", clear_on_submit=True, enter_to_submit=False):
         agent_id = st.text_input("Agent ID", help="Unique identifier for the new agent")
+        metadata = st.text_area(
+            "Agent Metadata (JSON-like string)",
+            help="Optional metadata for the agent in JSON format",
+            value="{}",
+        )
 
         if not st.form_submit_button("Create Agent"):
             return
@@ -237,8 +255,14 @@ def _create_agent(cookie_me: Dict | None):
             return
 
         try:
+            metadata = json.loads(metadata) if metadata else None
+        except json.JSONDecodeError:
+            st.warning("Metadata must be a valid JSON string. Ignoring metadata.")
+            metadata = None
+
+        try:
             spinner_container = show_overlay_spinner(f"Creating agent {agent_id}...")
-            result = client.utils.post_agent_create(agent_id=agent_id)
+            result = client.utils.post_agent_create(agent_id=agent_id, metadata=metadata)
             if result.created:
                 st.toast(f"Agent {agent_id} created successfully!", icon="✅")
                 if cookie_me:
@@ -251,6 +275,49 @@ def _create_agent(cookie_me: Dict | None):
             st.toast(f"Error creating agent: {e}", icon="❌")
         finally:
             spinner_container.empty()
+
+
+@st.dialog(title="Update Details", width="large")
+def _update_agent(agent_id: str, metadata: Dict, cookie_me: Dict | None):
+    if not has_access("CHESHIRE_CAT", "WRITE", cookie_me):
+        st.error("You do not have permission to update agents.")
+        return
+
+    client = CheshireCatClient(build_client_configuration())
+    st.header(f"Update Agent ID: {agent_id}")
+
+    with st.form("update_agent_form", enter_to_submit=False):
+        new_metadata = st.text_area(
+            "Agent Metadata",
+            value=json.dumps(metadata),
+            help="Optional metadata for the agent in JSON format",
+        )
+
+        if not st.form_submit_button("Update Agent"):
+            return
+
+        try:
+            new_metadata = json.loads(new_metadata) if new_metadata else None
+        except json.JSONDecodeError:
+            st.session_state["toast"] = {
+                "message": "Metadata must be a valid JSON string. Ignoring metadata.", "icon": "⚠️",
+            }
+            st.rerun()
+
+        try:
+            spinner_container = show_overlay_spinner(f"Updating metadata for Agent {agent_id}...")
+
+            result = client.utils.put_agent(agent_id=agent_id,  metadata=new_metadata or {})
+            if result.updated:
+                st.session_state["toast"] = {"message": f"Agent {agent_id} updated successfully!", "icon": "✅"}
+            else:
+                st.session_state["toast"] = {"message": f"Failed to update agent `{agent_id}`", "icon": "❌"}
+        except Exception as e:
+            st.session_state["toast"] = {"message": f"Error updating agent `{agent_id}`: {e}", "icon": "❌"}
+        finally:
+            spinner_container.empty()
+            time.sleep(1)
+            st.rerun()
 
 
 def utilities_management(cookie_me: Dict | None):
