@@ -31,7 +31,7 @@ def build_agents_options_select(cookie_me: Dict | None, excluded_agents: List[st
         agents = [agent["agent_name"] for agent in cookie_me.get("agents", [])]
     else:  # login by API key
         client = CheshireCatClient(build_client_configuration())
-        agents = client.utils.get_agents()
+        agents = [agent.agent_id for agent in client.utils.get_agents()]
 
     return {
         agent: slugify(agent) for agent in agents if agent not in (excluded_agents or [])
