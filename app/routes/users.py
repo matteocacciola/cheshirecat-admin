@@ -1,3 +1,4 @@
+import json
 import time
 from typing import Dict, List
 import streamlit as st
@@ -54,6 +55,12 @@ def _create_user(agent_id: str, cookie_me: Dict | None):
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
 
+        metadata = st.text_area(
+            "User Metadata (JSON-like string)",
+            help="Optional metadata for the agent in JSON format",
+            value="{}",
+        )
+
         # Permissions editor
         st.subheader("Permissions")
 
@@ -82,12 +89,25 @@ def _create_user(agent_id: str, cookie_me: Dict | None):
             st.error("At least one permission must be selected")
             return
 
+        try:
+            valid_metadata = True
+            metadata = json.loads(metadata)
+        except json.JSONDecodeError:
+            valid_metadata = False
+            metadata = {}
+
         spinner_container = show_overlay_spinner("Creating user...")
         try:
             result = client.users.post_user(
-                agent_id, username, password, _sanitize_selected_permissions(selected_permissions),
+                agent_id, username, password, _sanitize_selected_permissions(selected_permissions), metadata
             )
-            st.toast(f"User {result.username} created successfully!", icon="✅")
+            message = f"User {result.username} created successfully!"
+            icon = "✅"
+            if not valid_metadata:
+                message += " Metadata must be a valid JSON string. Ignoring metadata."
+                icon = "⚠️"
+
+            st.toast(message, icon=icon)
             time.sleep(1)
 
             # Increment form key to reset the form on next rerun
@@ -209,6 +229,12 @@ def _update_user(agent_id: str, user_id: str, cookie_me: Dict | None):
         new_username = st.text_input("Username", value=user_data.username)
         new_password = st.text_input("Password (leave blank to keep current)", type="password")
 
+        new_metadata = st.text_area(
+            "User Metadata (JSON-like string)",
+            help="Optional metadata for the agent in JSON format",
+            value=json.dumps(user_data.metadata, indent=2) if user_data.metadata else "{}"
+        )
+
         # Permissions editor
         st.subheader("Permissions")
 
@@ -236,6 +262,13 @@ def _update_user(agent_id: str, user_id: str, cookie_me: Dict | None):
             return
 
         try:
+            valid_metadata = True
+            new_metadata = json.loads(new_metadata)
+        except json.JSONDecodeError:
+            valid_metadata = False
+            new_metadata = {}
+
+        try:
             spinner_container = show_overlay_spinner(f"Updating user {user_id}...")
 
             result = client.users.put_user(
@@ -244,8 +277,16 @@ def _update_user(agent_id: str, user_id: str, cookie_me: Dict | None):
                 username=new_username,
                 password=new_password or None,
                 permissions=_sanitize_selected_permissions(selected_permissions) or None,
+                metadata=new_metadata,
             )
-            st.session_state["toast"] = {"message": f"User {result.username} updated successfully!", "icon": "✅"}
+
+            message = f"User {result.username} updated successfully!"
+            icon = "✅"
+            if not valid_metadata:
+                message += " Metadata must be a valid JSON string. Ignoring metadata."
+                icon = "⚠️"
+
+            st.session_state["toast"] = {"message": message, "icon": icon}
         except Exception as e:
             st.session_state["toast"] = {"message": f"Error updating user `{user_id}`: {e}", "icon": "❌"}
         finally:

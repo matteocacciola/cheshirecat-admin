@@ -289,7 +289,7 @@ def _update_agent(agent_id: str, metadata: Dict, cookie_me: Dict | None):
     with st.form("update_agent_form", enter_to_submit=False):
         new_metadata = st.text_area(
             "Agent Metadata",
-            value=json.dumps(metadata),
+            value=json.dumps(metadata, indent=2),
             help="Optional metadata for the agent in JSON format",
         )
 
