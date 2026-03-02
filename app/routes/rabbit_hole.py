@@ -3,7 +3,7 @@ import tempfile
 import time
 from typing import Dict
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from grinning_cat_python_sdk import GrinningCatClient
 import json
 import base64
 
@@ -20,7 +20,7 @@ def _upload_files(agent_id: str, cookie_me: Dict | None):
         st.error("You do not have permission to upload files.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Upload Files")
 
     allowed_file_types = client.rabbit_hole.get_allowed_mime_types(agent_id)
@@ -133,7 +133,7 @@ def _upload_url(agent_id: str, cookie_me: Dict | None):
         st.error("You do not have permission to upload files.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Upload from URL")
 
     with st.form("upload_url_form", clear_on_submit=True, enter_to_submit=False):
@@ -184,7 +184,7 @@ def _list_files(agent_id: str, cookie_me: Dict | None):
         st.error("You do not have permission to view uploaded files.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Uploaded Files")
 
     try:
@@ -279,7 +279,7 @@ def rabbit_hole_management(cookie_me: Dict | None):
     st.title("Knowledge Base Management")
 
     st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
-    please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the CheshireCat.""")
+    please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the GrinningCat.""")
 
     build_agents_select("rabbit_hole", cookie_me)
     if not (agent_id := st.session_state.get("agent_id")):

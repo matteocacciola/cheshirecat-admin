@@ -1,7 +1,7 @@
 import json
 from typing import Dict
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from grinning_cat_python_sdk import GrinningCatClient
 
 from app.utils import (
     get_factory_settings,
@@ -21,7 +21,7 @@ def _list_auth_handlers(agent_id: str, cookie_me: Dict | None):
         st.error("You do not have access to view authentication handlers for this agent.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Authentication Handlers")
 
     try:
@@ -64,7 +64,7 @@ def _edit_auth_handler(agent_id: str, handler_name: str, is_selected: bool, cook
         st.error("You do not have access to edit authentication handlers for this agent.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
 
     st.subheader(f"Editing: **{handler_name}**")
     try:

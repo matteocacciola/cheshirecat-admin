@@ -1,10 +1,10 @@
-# Cheshire Cat Admin UI
+# Grinning Cat Admin UI
 
-A modern web-based administration interface for the [Cheshire Cat Core](https://github.com/matteocacciola/cheshirecat-core) framework. This admin UI provides a user-friendly interface to manage, configure, and monitor your Cheshire Cat AI assistant instances.
+A modern web-based administration interface for the [Grinning Cat Core](https://github.com/matteocacciola/grinning-cat-core) framework. This admin UI provides a user-friendly interface to manage, configure, and monitor your Grinning Cat AI assistant instances.
 
 ## Features
 
-- 🎯 **Dashboard Overview** - Real-time monitoring of Cheshire Cat instances
+- 🎯 **Dashboard Overview** - Real-time monitoring of Grinning Cat instances
 - 🔧 **Configuration Management** - Easy-to-use interface for system settings
 - 🧩 **Plugin Management** - Install, configure, and manage plugins
 - 👥 **User Management** - Handle user accounts and permissions
@@ -16,15 +16,15 @@ A modern web-based administration interface for the [Cheshire Cat Core](https://
 
 - Python 3.11 or higher
 - pip and venv for dependency management
-- Running instance of [Cheshire Cat Core](https://github.com/matteocacciola/cheshirecat-core)
+- Running instance of [Grinning Cat Core](https://github.com/matteocacciola/grinning-cat-core)
 
 ## Installation
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/matteocacciola/cheshirecat-admin.git
-cd cheshirecat-admin
+git clone https://github.com/matteocacciola/grinning-cat-admin.git
+cd grinning-cat-admin
 ```
 
 ### 2. Create and activate virtual environment
@@ -60,13 +60,13 @@ The admin interface will be available at `http://localhost:8501`
 
 ## Configuration
 
-### Connecting to Cheshire Cat Core
+### Connecting to Grinning Cat Core
 
-The admin UI connects to your Cheshire Cat Core instance via REST API. Configure the connection in your `.env` file:
+The admin UI connects to your Grinning Cat Core instance via REST API. Configure the connection in your `.env` file:
 
 ```env
-CHESHIRE_CAT_API_URL=http://your-cheshire-cat-instance:1865
-CHESHIRE_CAT_API_KEY=your-api-key
+GRINNING_CAT_API_URL=http://your-grinning-cat-instance:1865
+GRINNING_CAT_API_KEY=your-api-key
 ```
 
 ### Authentication
@@ -75,7 +75,7 @@ The admin interface supports multiple authentication methods:
 
 - **Local authentication**: Username/password stored in the admin database
 - **JWT tokens**: Secure token-based authentication
-- **Integration with Cheshire Cat Core**: Sync users from your Cat instance
+- **Integration with Grinning Cat Core**: Sync users from your Cat instance
 
 ## Contributing
 
@@ -96,15 +96,14 @@ This project is licensed under [GPL3](LICENSE).
 
 ## Support
 
-- 📖 [Documentation](https://docs.cheshirecat.ai/admin)
-- 🐛 [Issue Tracker](https://github.com/matteocacciola/cheshirecat-admin/issues)
+- 🐛 [Issue Tracker](https://github.com/matteocacciola/grinning-cat-admin/issues)
 - 📧 [Email Support](mailto:matteo.cacciola@gmail.com)
 
 ## Acknowledgments
 
-- [Cheshire Cat Core](https://github.com/matteocacciola/cheshirecat-core) - The AI framework this admin interface manages
+- [Grinning Cat Core](https://github.com/matteocacciola/grinning-cat-core) - The AI framework this admin interface manages
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework for building APIs
 
 ---
 
-**Made with ❤️ for the Cheshire Cat community**
+**Made with ❤️ for the Grinning Cat community**

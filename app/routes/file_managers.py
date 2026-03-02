@@ -1,7 +1,7 @@
 import json
 from typing import Dict
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from grinning_cat_python_sdk import GrinningCatClient
 
 from app.utils import (
     get_factory_settings,
@@ -21,7 +21,7 @@ def _list_file_managers(agent_id: str, cookie_me: Dict | None):
         st.error("You do not have access to view file managers for this agent.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("File Managers")
 
     try:
@@ -64,7 +64,7 @@ def _edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool,
         st.error("You do not have access to edit file managers for this agent.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
 
     st.subheader(f"Editing: **{file_manager_name}**")
     try:
@@ -112,7 +112,7 @@ def file_managers_management(cookie_me: Dict | None):
     st.title("File Managers Management Dashboard")
 
     st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
-    please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the CheshireCat.""")
+    please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the GrinningCat.""")
 
     build_agents_select("file_managers", cookie_me)
     if "agent_id" in st.session_state:

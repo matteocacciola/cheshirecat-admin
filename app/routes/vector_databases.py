@@ -1,7 +1,7 @@
 import json
 from typing import Dict
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from grinning_cat_python_sdk import GrinningCatClient
 
 from app.utils import (
     get_factory_settings,
@@ -21,7 +21,7 @@ def _list_vector_databases(agent_id: str, cookie_me: Dict | None):
         st.error("You do not have access to view vector databases for this agent.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Vector Databases")
 
     try:
@@ -64,7 +64,7 @@ def _edit_vector_database(agent_id: str, vector_database_name: str, is_selected:
         st.error("You do not have access to edit vector databases for this agent.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
 
     st.subheader(f"Editing: **{vector_database_name}**")
     try:

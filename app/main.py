@@ -3,7 +3,7 @@ import time
 from typing import Dict
 import streamlit as st
 from dotenv import load_dotenv
-from cheshirecat_python_sdk import CheshireCatClient
+from grinning_cat_python_sdk import GrinningCatClient
 from streamlit_js_eval import get_cookie
 
 from app.constants import CHECK_INTERVAL, WELCOME_MESSAGE
@@ -94,7 +94,7 @@ footer {visibility: hidden;}
 
     st.markdown(f"""
 <style>
-{hide_dev_toolbar if get_env('CHESHIRE_CAT_ENVIRONMENT') == 'prod' else ''}
+{hide_dev_toolbar if get_env('GRINNING_CAT_ENVIRONMENT') == 'prod' else ''}
 
 /* Main content area */
 .main .block-container {{
@@ -145,7 +145,7 @@ def _check_status():
     """Check backend status and display it"""
     current_status = st.session_state.get("status_connection", "Warning")
     try:
-        client = CheshireCatClient(build_client_configuration())
+        client = GrinningCatClient(build_client_configuration())
         client.health_check.liveness()
         status_connection = "Online"
     except Exception:
@@ -300,11 +300,11 @@ def _main():
     _check_status()
     if st.session_state["status_connection"] != "Online":
         st.title(WELCOME_MESSAGE)
-        st.error("Cheshire Cat backend is offline. Please check your connection.")
+        st.error("Grinning Cat backend is offline. Please check your connection.")
         return
 
     # Add a flag to track if we've attempted cookie check
-    st.session_state["token"] = st.session_state.get("token", get_env("CHESHIRE_CAT_API_KEY"))
+    st.session_state["token"] = st.session_state.get("token", get_env("GRINNING_CAT_API_KEY"))
     st.session_state["initial_auth_check_done"] = st.session_state.get(
         "initial_auth_check_done", st.session_state["token"] is not None,
     )
@@ -409,14 +409,14 @@ def _main():
 # ----- Main application -----
 if __name__ == "__main__":
     st.set_page_config(
-        page_title="Cheshire Cat Admin UI",
+        page_title="Grinning Cat Admin UI",
         layout="wide",
         page_icon="🐱",
         initial_sidebar_state="expanded",
         menu_items={
             "Get Help": "mailto:matteo.cacciola@gmail.com",
             "Report a bug": "mailto:matteo.cacciola@gmail.com",
-            "About": "Cheshire Cat Admin UI - A Streamlit application for managing the Cheshire Cat backend.",
+            "About": "Grinning Cat Admin UI - A Streamlit application for managing the Grinning Cat backend.",
         }
     )
 

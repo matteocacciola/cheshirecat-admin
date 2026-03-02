@@ -1,7 +1,7 @@
 import json
 from typing import Dict
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from grinning_cat_python_sdk import GrinningCatClient
 
 from app.utils import (
     get_factory_settings,
@@ -20,7 +20,7 @@ def _list_embedders(cookie_me: Dict | None):
         st.error("You do not have access to view embedders.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Embedders")
 
     try:
@@ -63,7 +63,7 @@ def _edit_embedder(embedder_name: str, is_selected: bool, cookie_me: Dict | None
         st.error("You do not have access to edit embedders.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
 
     st.subheader(f"Editing: **{embedder_name}**")
     try:

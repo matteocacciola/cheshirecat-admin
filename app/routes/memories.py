@@ -2,7 +2,7 @@ import base64
 import time
 from typing import Dict
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from grinning_cat_python_sdk import GrinningCatClient
 
 from app.utils import (
     build_agents_select,
@@ -22,7 +22,7 @@ def _memory_collections(agent_id: str, cookie_me: Dict | None):
         st.error("You do not have access to view memory collections.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Memory Collections")
 
     try:
@@ -96,7 +96,7 @@ def _view_conversation_history(agent_id: str, user_id: str, conversation_id: str
         st.error("You do not have access to view conversation history.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Conversation History")
 
     try:
@@ -246,7 +246,7 @@ def _edit_chat_files(agent_id: str, conversation_id: str, cookie_me: Dict | None
         st.error("You do not have access to list the files in this conversation.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     try:
         files = client.file_manager.get_file_manager_attributes(agent_id, conversation_id)
         if not files.files:

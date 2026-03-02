@@ -3,14 +3,14 @@ import os
 
 def get_supported_env_variables():
     return {
-        "CHESHIRE_CAT_API_HOST": "localhost",
-        "CHESHIRE_CAT_API_PORT": "1865",
-        "CHESHIRE_CAT_API_KEY": None,
-        "CHESHIRE_CAT_API_SECURE_CONNECTION": "false",
-        "CHESHIRE_CAT_INTRO_MESSAGE": None,
-        "CHESHIRE_CAT_CHECK_INTERVAL": "20",
-        "CHESHIRE_CAT_JWT_EXPIRE_MINUTES": str(60 * 24),  # JWT expires after 1 day
-        "CHESHIRE_CAT_ENVIRONMENT": "prod",
+        "GRINNING_CAT_API_HOST": "localhost",
+        "GRINNING_CAT_API_PORT": "1865",
+        "GRINNING_CAT_API_KEY": None,
+        "GRINNING_CAT_API_SECURE_CONNECTION": "false",
+        "GRINNING_CAT_INTRO_MESSAGE": None,
+        "GRINNING_CAT_CHECK_INTERVAL": "20",
+        "GRINNING_CAT_JWT_EXPIRE_MINUTES": str(60 * 24),  # JWT expires after 1 day
+        "GRINNING_CAT_ENVIRONMENT": "prod",
     }
 
 

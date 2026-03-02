@@ -5,8 +5,8 @@ import json
 import time
 from typing import Dict, List
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
-from cheshirecat_python_sdk.models.api.plugins import PluginCollectionOutput
+from grinning_cat_python_sdk import GrinningCatClient
+from grinning_cat_python_sdk.models.api.plugins import PluginCollectionOutput
 
 from app.constants import ASSETS_PATH, DEFAULT_SYSTEM_KEY
 from app.utils import (
@@ -120,7 +120,7 @@ def _render_installed_plugin_agents(p, cookie_me: Dict | None):
 
 
 def _render_installed_plugin_admins(
-    p, client: CheshireCatClient, cookie_me: Dict | None, core_plugins_ids: List[str] | None = None,
+    p, client: GrinningCatClient, cookie_me: Dict | None, core_plugins_ids: List[str] | None = None,
 ):
     """Render a single installed plugin row."""
     col0, col1, col2, col3 = st.columns([0.05, 0.63, 0.1, 0.22])
@@ -178,7 +178,7 @@ def _list_plugins(cookie_me: Dict | None):
     # Search functionality
     search_query = st.text_input("Search plugins", "")
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
 
     if st.session_state.get("agent_id") == DEFAULT_SYSTEM_KEY:
         _list_plugins_admins(client, search_query, cookie_me)
@@ -187,7 +187,7 @@ def _list_plugins(cookie_me: Dict | None):
     _list_plugins_agents(client, search_query, cookie_me)
 
 
-def _list_plugins_agents(client: CheshireCatClient, search_query: str, cookie_me: Dict | None):
+def _list_plugins_agents(client: GrinningCatClient, search_query: str, cookie_me: Dict | None):
     if not (agent_id := st.session_state.get("agent_id")):
         return
 
@@ -198,7 +198,7 @@ def _list_plugins_agents(client: CheshireCatClient, search_query: str, cookie_me
         st.error(f"Error fetching plugins: {e}")
 
 
-def _list_plugins_admins(client: CheshireCatClient, search_query: str, cookie_me: Dict | None):
+def _list_plugins_admins(client: GrinningCatClient, search_query: str, cookie_me: Dict | None):
     try:
         plugins = client.admins.get_available_plugins(plugin_name=search_query)
         core_plugins_ids = client.custom.get_custom("/admins/core_plugins", DEFAULT_SYSTEM_KEY)
@@ -289,7 +289,7 @@ def _list_plugins_admins(client: CheshireCatClient, search_query: str, cookie_me
 
 
 def _list_plugins_installed(
-    client: CheshireCatClient,
+    client: GrinningCatClient,
     plugins: PluginCollectionOutput,
     cookie_me: Dict | None,
     core_plugins_ids: List[str] | None = None,
@@ -321,7 +321,7 @@ def _list_plugins_installed(
 
 @st.dialog(title="Plugin Details", width="large")
 def view_plugin_details(plugin_id: str):
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     try:
         plugin_details = client.admins.get_plugin_details(plugin_id).data
 
@@ -377,7 +377,7 @@ def manage_plugin(plugin_id: str):
     if not (agent_id := st.session_state.get("agent_id")):
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
 
     # fetch the plugin
     try:
@@ -476,7 +476,7 @@ You have to activate the plugin before managing its settings.""")
 
 
 def _install_plugin_from_file():
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Install Plugin from File")
 
     with st.form("upload_plugin_form", clear_on_submit=True, enter_to_submit=False):

@@ -1,7 +1,7 @@
 import json
 from typing import Dict
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from grinning_cat_python_sdk import GrinningCatClient
 
 from app.utils import (
     get_factory_settings,
@@ -21,7 +21,7 @@ def _list_agentic_workflows(agent_id: str, cookie_me: Dict | None):
         st.error("You do not have access to view agentic workflows for this agent.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Agentic Workflows")
 
     try:
@@ -64,7 +64,7 @@ def _edit_agentic_workflow(agent_id: str, handler_name: str, is_selected: bool, 
         st.error("You do not have access to edit agentic workflows for this agent.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
 
     st.subheader(f"Editing: **{handler_name}**")
     try:

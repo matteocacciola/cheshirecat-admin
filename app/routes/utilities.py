@@ -2,7 +2,7 @@ import json
 import time
 from typing import Dict
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from grinning_cat_python_sdk import GrinningCatClient
 
 from app.utils import show_overlay_spinner, build_client_configuration, has_access, run_toast, cache_cookie_me
 
@@ -14,7 +14,7 @@ def _factory_reset(cookie_me: Dict | None):
         st.error("You do not have permission to perform a factory reset.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Factory Reset")
 
     st.warning("""
@@ -58,7 +58,7 @@ def _list_agents(cookie_me: Dict | None):
         st.error("You do not have permission to view agents.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Agent Management")
 
     try:
@@ -236,7 +236,7 @@ def _create_agent(cookie_me: Dict | None):
         st.error("You do not have permission to create agents.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("Create New Agent")
 
     with st.form("create_agent_form", clear_on_submit=True, enter_to_submit=False):
@@ -283,7 +283,7 @@ def _update_agent(agent_id: str, metadata: Dict, cookie_me: Dict | None):
         st.error("You do not have permission to update agents.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header(f"Update Agent ID: {agent_id}")
 
     with st.form("update_agent_form", enter_to_submit=False):

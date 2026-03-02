@@ -2,7 +2,7 @@ import json
 import time
 from typing import Dict, List
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
+from grinning_cat_python_sdk import GrinningCatClient
 
 from app.constants import DEFAULT_SYSTEM_KEY
 from app.utils import build_agents_select, show_overlay_spinner, build_client_configuration, run_toast, has_access
@@ -45,7 +45,7 @@ def _create_user(agent_id: str, cookie_me: Dict | None):
         st.error("You do not have permission to create users.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
 
     # Initialize form key in session state if not present
     st.session_state["user_form_key"] = st.session_state.get("user_form_key", 0)
@@ -126,7 +126,7 @@ def _list_users(agent_id: str, cookie_me: Dict | None):
         st.error("You do not have permission to view users.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header("List All Users")
 
     try:
@@ -200,7 +200,7 @@ def _get_user(agent_id: str, user_id: str, cookie_me: Dict | None):
         st.error("You do not have permission to view user details.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header(f"User Details for ID: {user_id}")
 
     try:
@@ -216,7 +216,7 @@ def _update_user(agent_id: str, user_id: str, cookie_me: Dict | None):
         st.error("You do not have permission to update users.")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     st.header(f"Update User ID: {user_id}")
 
     try:

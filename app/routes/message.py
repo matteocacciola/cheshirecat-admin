@@ -1,8 +1,8 @@
 from typing import Dict
 
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient
-from cheshirecat_python_sdk.models.dtos import Message
+from grinning_cat_python_sdk import GrinningCatClient
+from grinning_cat_python_sdk.models.dtos import Message
 
 from app.constants import INTRO_MESSAGE
 from app.utils import build_agents_select, build_users_select, build_client_configuration, has_access, run_toast
@@ -11,7 +11,7 @@ from app.utils import build_agents_select, build_users_select, build_client_conf
 def chat(cookie_me: Dict | None):
     run_toast()
 
-    st.header("Chat with the CheshireCat")
+    st.header("Chat with the GrinningCat")
 
     if not has_access("CHAT", "WRITE", cookie_me):
         st.error("You do not have permission to access the chat functionality.")
@@ -34,7 +34,7 @@ def chat(cookie_me: Dict | None):
             "content": INTRO_MESSAGE,
         })
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
 
     user_message = st.chat_input(placeholder="Type your message here...")
     if user_message:

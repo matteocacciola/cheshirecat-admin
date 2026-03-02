@@ -2,8 +2,8 @@ import json
 from typing import Dict, Any, List
 from slugify import slugify
 import streamlit as st
-from cheshirecat_python_sdk import CheshireCatClient, Configuration
-from cheshirecat_python_sdk.models.api.factories import FactoryObjectSettingOutput
+from grinning_cat_python_sdk import GrinningCatClient, Configuration
+from grinning_cat_python_sdk.models.api.factories import FactoryObjectSettingOutput
 from streamlit_js_eval import set_cookie
 
 from app.constants import DEFAULT_SYSTEM_KEY
@@ -30,7 +30,7 @@ def build_agents_options_select(cookie_me: Dict | None, excluded_agents: List[st
     if cookie_me:  # login by credentials
         agents = [agent["agent_name"] for agent in cookie_me.get("agents", [])]
     else:  # login by API key
-        client = CheshireCatClient(build_client_configuration())
+        client = GrinningCatClient(build_client_configuration())
         agents = [agent.agent_id for agent in client.utils.get_agents()]
 
     return {
@@ -69,7 +69,7 @@ def build_users_select(k: str, agent_id: str, cookie_me: Dict | None):
         st.session_state["user_id"] = agent_match.get("user", {}).get("id")
         return
 
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     users = client.users.get_users(agent_id)
 
     # Navigation
@@ -84,7 +84,7 @@ def build_users_select(k: str, agent_id: str, cookie_me: Dict | None):
 
 
 def build_conversations_select(k: str, agent_id: str, user_id: str):
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     conversations = client.conversation.get_conversations(agent_id, user_id)
 
     if not conversations:
@@ -165,10 +165,10 @@ def show_overlay_spinner(message="Processing..."):
 
 def build_client_configuration():
     return Configuration(
-        host=get_env("CHESHIRE_CAT_API_HOST").replace("https://", "").replace("http://", ""),
-        port=int(get_env("CHESHIRE_CAT_API_PORT")),
+        host=get_env("GRINNING_CAT_API_HOST").replace("https://", "").replace("http://", ""),
+        port=int(get_env("GRINNING_CAT_API_PORT")),
         auth_key=st.session_state.get("token"),
-        secure_connection=get_env_bool("CHESHIRE_CAT_API_SECURE_CONNECTION"),
+        secure_connection=get_env_bool("GRINNING_CAT_API_SECURE_CONNECTION"),
     )
 
 
@@ -263,7 +263,7 @@ def is_system_agent_selected() -> bool:
 
 
 def cache_cookie_me():
-    client = CheshireCatClient(build_client_configuration())
+    client = GrinningCatClient(build_client_configuration())
     res = client.auth.me(st.session_state.get("token"))
     me_data = res.model_dump()
 
@@ -274,5 +274,5 @@ def cache_cookie_me():
     set_cookie(
         "me",
         json.dumps(me_data),
-        duration_days=int(get_env("CHESHIRE_CAT_JWT_EXPIRE_MINUTES")) / (60 * 24),
+        duration_days=int(get_env("GRINNING_CAT_JWT_EXPIRE_MINUTES")) / (60 * 24),
     )
