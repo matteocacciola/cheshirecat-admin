@@ -8,7 +8,7 @@ from app.constants import INTRO_MESSAGE
 from app.utils import build_agents_select, build_users_select, build_client_configuration, has_access, run_toast
 
 
-def chat(cookie_me: Dict | None):
+async def chat(cookie_me: Dict | None):
     run_toast()
 
     st.header("Chat with the GrinningCat")
@@ -25,11 +25,14 @@ def chat(cookie_me: Dict | None):
     if not (user_id := st.session_state.get("user_id")):
         return
 
-    st.session_state["chat_id"] = st.session_state.get("chat_id")
+    messages_key = f"messages_{agent_id}_{user_id}"
+    chat_id_key = f"chat_id_{agent_id}_{user_id}"
 
-    st.session_state["messages"] = st.session_state.get("messages", [])
-    if not st.session_state["messages"] and INTRO_MESSAGE:
-        st.session_state["messages"].append({
+    st.session_state.setdefault(chat_id_key, None)
+    st.session_state.setdefault(messages_key, [])
+
+    if not st.session_state[messages_key] and INTRO_MESSAGE:
+        st.session_state[messages_key].append({
             "role": "assistant",
             "content": INTRO_MESSAGE,
         })
@@ -39,24 +42,27 @@ def chat(cookie_me: Dict | None):
     user_message = st.chat_input(placeholder="Type your message here...")
     if user_message:
         try:
-            response = client.message.send_http_message(
-                Message(text=user_message), agent_id=agent_id, user_id=user_id, chat_id=st.session_state["chat_id"],
+            response = await client.message.send_websocket_message(
+                Message(text=user_message),
+                agent_id=agent_id,
+                user_id=user_id,
+                chat_id=st.session_state[chat_id_key],
             )
 
-            st.session_state["messages"].append({
+            st.session_state[messages_key].append({
                 "role": "user",
                 "content": user_message,
             })
 
-            st.session_state["messages"].append({
+            st.session_state[messages_key].append({
                 "role": "assistant",
                 "content": response.message.text,
             })
-            st.session_state["chat_id"] = response.chat_id
+            st.session_state[chat_id_key] = response.chat_id
         except Exception as e:
             st.toast(f"Error sending message: {e}", icon="❌")
 
     st.write("###     Conversation History")
-    for message in st.session_state["messages"]:
+    for message in st.session_state[messages_key]:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])

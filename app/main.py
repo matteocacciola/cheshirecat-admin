@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 from typing import Dict
@@ -292,7 +293,7 @@ For security reasons, please consider creating admin users and logging in by cre
             st.rerun()
 
 
-def _main():
+async def _main():
     """Main application function"""
     # Apply custom styling
     _apply_custom_css()
@@ -352,7 +353,7 @@ def _main():
         if "messages" in st.session_state:
             st.session_state.pop("messages", None)
 
-        chat(cookie_me)
+        await chat(cookie_me)
         return
 
     if current_page == "ai_models":
@@ -421,4 +422,4 @@ if __name__ == "__main__":
     )
 
     load_dotenv()
-    _main()
+    asyncio.run(_main())
