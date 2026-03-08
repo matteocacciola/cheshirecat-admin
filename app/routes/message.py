@@ -41,26 +41,51 @@ async def chat(cookie_me: Dict | None):
 
     user_message = st.chat_input(placeholder="Type your message here...")
     if user_message:
-        try:
-            response = await client.message.send_websocket_message(
-                Message(text=user_message),
-                agent_id=agent_id,
-                user_id=user_id,
-                chat_id=st.session_state[chat_id_key],
-            )
+        st.session_state[messages_key].append({
+            "role": "user",
+            "content": user_message,
+        })
 
-            st.session_state[messages_key].append({
-                "role": "user",
-                "content": user_message,
-            })
+        try:
+            # Render past messages
+            st.write("###     Conversation History")
+            for message in st.session_state[messages_key]:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
+
+            # Show typewriter effect live while the response streams in
+            with st.chat_message("assistant"):
+                placeholder = st.empty()
+                accumulated = ""
+                placeholder.markdown("_Thinking..._  ⠋")  # <-- show while waiting
+
+                def streaming_callback(event):
+                    nonlocal accumulated
+                    if isinstance(event, dict) and event.get("type") == "chat_token":
+                        accumulated += event.get("content")
+                        placeholder.markdown(accumulated + "▌")  # blinking cursor effect
+
+                response = await client.message.send_websocket_message(
+                    Message(text=user_message),
+                    agent_id=agent_id,
+                    user_id=user_id,
+                    chat_id=st.session_state[chat_id_key],
+                    callback=streaming_callback,
+                )
+
+                # Finalise: remove cursor, show clean text
+                final_text = response.message.text
+                placeholder.markdown(final_text)
 
             st.session_state[messages_key].append({
                 "role": "assistant",
-                "content": response.message.text,
+                "content": final_text,
             })
             st.session_state[chat_id_key] = response.chat_id
         except Exception as e:
             st.toast(f"Error sending message: {e}", icon="❌")
+
+        return
 
     st.write("###     Conversation History")
     for message in st.session_state[messages_key]:
