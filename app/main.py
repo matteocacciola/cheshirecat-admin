@@ -258,6 +258,8 @@ def _render_sidebar_navigation(cookie_me: Dict | None):
                     st.session_state["selected_page"] = item_keys["page"]
                     if not cookie_me:
                         st.session_state.pop("agent_id", None)
+                        st.session_state.pop("user_id", None)
+                        st.session_state.pop("conversation_id", None)
                     st.rerun()  # Force immediate rerun
 
             if any(item["allowed"] for item in menu_items.values()):

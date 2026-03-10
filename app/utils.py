@@ -52,13 +52,16 @@ def build_agents_select(k: str, cookie_me: Dict | None):
     if menu_options[choice] is None:
         st.info("Please select an agent to manage.")
         st.session_state.pop("agent_id", None)
+        if not cookie_me:
+            st.session_state.pop("user_id", None)
+            st.session_state.pop("conversation_id", None)
         return
 
     st.session_state["agent_id"] = choice
 
 
 def build_users_select(k: str, agent_id: str, cookie_me: Dict | None):
-    if st.session_state.get("user_id") is not None:
+    if st.session_state.get("user_id") is not None and cookie_me is not None:
         return  # already selected
 
     if cookie_me:  # login by credentials
