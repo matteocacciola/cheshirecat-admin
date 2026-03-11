@@ -269,14 +269,16 @@ def _list_plugins_admins(client: GrinningCatClient, search_query: str, cookie_me
                         st.write(f"**Tags**: {registry_plugin.tags or 'No tags'}")
 
                 with col2:
-                    if has_access("PLUGIN", "WRITE", cookie_me) and st.button("Install Plugin",
-                                                                              key=f"install_{registry_plugin.name}"):
+                    if (
+                            has_access("PLUGIN", "WRITE", cookie_me)
+                            and st.button("Install Plugin", key=f"install_{registry_plugin.name}")
+                    ):
                         spinner_container = show_overlay_spinner("Installing plugin...")
                         try:
                             client.admins.post_install_plugin_from_registry(url=plugin_url)
                             st.toast("Installation successful!", icon="✅")
                         except Exception as e:
-                            st.toast(f"Error installing plugin: {e}", icon="❌")
+                            st.toast(f"Error installing plugin: {e}. Try to manually download and install the plugin from its repository.", icon="❌")
                         finally:
                             spinner_container.empty()
                         st.rerun()
