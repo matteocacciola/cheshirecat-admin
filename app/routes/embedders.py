@@ -36,7 +36,7 @@ def _list_embedders(cookie_me: Dict | None):
             is_selected = embedder.name == settings.selected_configuration
             with col1:
                 with st.expander(embedder.name):
-                    st.json(get_factory_settings(embedder, is_selected))
+                    st.json(get_factory_settings(embedder, is_selected)[0])
 
             with col2:
                 if is_selected:
@@ -67,7 +67,7 @@ def _edit_embedder(embedder_name: str, is_selected: bool, cookie_me: Dict | None
 
     st.subheader(f"Editing: **{embedder_name}**")
     try:
-        embedder_settings = get_factory_settings(
+        embedder_settings, embedder_types = get_factory_settings(
             client.embedder.get_embedder_settings(embedder_name),
             is_selected=is_selected,
         )
@@ -75,7 +75,7 @@ def _edit_embedder(embedder_name: str, is_selected: bool, cookie_me: Dict | None
             edited_settings = {}
             if embedder_settings:
                 # Render the form
-                edited_settings = render_json_form(embedder_settings)
+                edited_settings = render_json_form(embedder_settings, embedder_types)
 
             if not edited_settings:
                 st.text("No settings available to edit. Click 'Save' to confirm or 'Back to list' to cancel.")

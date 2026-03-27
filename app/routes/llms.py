@@ -37,7 +37,7 @@ def _list_llms(agent_id: str, cookie_me: Dict | None):
             is_selected = llm.name == settings.selected_configuration
             with col1:
                 with st.expander(llm.name):
-                    st.json(get_factory_settings(llm, is_selected))
+                    st.json(get_factory_settings(llm, is_selected)[0])
 
             with col2:
                 if is_selected:
@@ -68,7 +68,7 @@ def _edit_llm(agent_id: str, llm_name: str, is_selected: bool, cookie_me: Dict |
 
     st.subheader(f"Editing: **{llm_name}**")
     try:
-        llm_settings = get_factory_settings(
+        llm_settings, llm_types = get_factory_settings(
             client.large_language_model.get_large_language_model_settings(llm_name, agent_id),
             is_selected=is_selected
         )
@@ -76,7 +76,7 @@ def _edit_llm(agent_id: str, llm_name: str, is_selected: bool, cookie_me: Dict |
             edited_settings = {}
             if llm_settings:
                 # Render the form
-                edited_settings = render_json_form(llm_settings)
+                edited_settings = render_json_form(llm_settings, llm_types)
 
             if not edited_settings:
                 st.text("No settings available to edit. Click 'Save' to confirm or 'Back to list' to cancel.")

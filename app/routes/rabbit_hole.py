@@ -278,8 +278,7 @@ def _list_files(agent_id: str, cookie_me: Dict | None):
 def rabbit_hole_management(cookie_me: Dict | None):
     st.title("Knowledge Base Management")
 
-    st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
-    please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the GrinningCat.""")
+    st.info("**Disclaimer**: If you want to store the files of the Knowledge Base to a specific file manager, please select one in the **File Managers** section.")
 
     build_agents_select("rabbit_hole", cookie_me)
     if not (agent_id := st.session_state.get("agent_id")):

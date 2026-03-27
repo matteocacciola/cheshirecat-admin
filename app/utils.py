@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from slugify import slugify
 import streamlit as st
 from grinning_cat_python_sdk import GrinningCatClient, Configuration
@@ -10,7 +10,9 @@ from app.constants import DEFAULT_SYSTEM_KEY
 from app.env import get_env, get_env_bool
 
 
-def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool) -> Dict[str, Any]:
+def get_factory_settings(
+    factory: FactoryObjectSettingOutput, is_selected: bool
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """
     Get the settings of a factory instance.
 
@@ -19,11 +21,28 @@ def get_factory_settings(factory: FactoryObjectSettingOutput, is_selected: bool)
         is_selected: A boolean indicating if the factory is selected.
 
     Returns:
-        A dictionary containing the settings of the factory.
+        A tuple containing two dictionaries:
+            - The first dictionary contains the current values of the factory settings.
+            - The second dictionary contains the types of the factory settings.
     """
-    return factory.value if is_selected else {
-        k: v.get("default") for k, v in factory.scheme.get("properties", {}).items() if isinstance(v, dict)
-    }
+    def get_type():
+        if "type" in v:
+            return v["type"]
+        if "anyOf" in v:
+            tmp_types = [t.get("type") for t in v["anyOf"] if "type" in t and t.get("type") != "null"]
+            return tmp_types[0] if tmp_types else "string"
+        return "string"
+
+    if is_selected:
+        return factory.value, {}
+
+    values = {}
+    types = {}
+    for k, v in factory.scheme.get("properties", {}).items():
+        if isinstance(v, dict):
+            values[k] = v.get("default")
+            types[k] = get_type()
+    return values, types
 
 
 def build_agents_options_select(cookie_me: Dict | None, excluded_agents: List[str] | None = None) -> Dict[str, str]:
@@ -45,6 +64,7 @@ def build_agents_select(k: str, cookie_me: Dict | None):
     # Navigation
     agent_options = build_agents_options_select(cookie_me)
     if len(agent_options) == 0:
+        st.info("No agents found. Please create an agent first.")
         return
 
     menu_options = {"(Select an Agent)": None} | agent_options
@@ -175,41 +195,43 @@ def build_client_configuration():
     )
 
 
-def render_json_form(data: Dict, prefix: str = "", special_keys: List[str] | None = None) -> Dict:
+def render_json_form(data: Dict, types: Dict, prefix: str = "", special_keys: List[str] | None = None) -> Dict:
     """Recursively render form fields for JSON data."""
-    def infer_type(v: Any) -> str:
-        if isinstance(v, bool):
+    def infer_type() -> str:
+        if value is None:
+            return types.get(key)
+        if isinstance(value, bool):
             return "boolean"
-        if isinstance(v, int):
+        if isinstance(value, int):
             return "integer"
-        if isinstance(v, float):
+        if isinstance(value, float):
             return "float"
-        if isinstance(v, str):
+        if isinstance(value, str):
             return "string"
-        if isinstance(v, (list, dict)):
+        if isinstance(value, (list, dict)):
             return "json"
         return "string"
 
-    def create_input_field(v) -> Any:
-        field_type = infer_type(v)
+    def create_input_field() -> Any:
+        field_type = infer_type()
         if field_type == "boolean":
-            return st.checkbox(key, value=v, key=path)
+            return st.checkbox(key, value=value, key=path)
         if field_type == "integer":
-            return st.number_input(key, value=v, step=1, key=path)
+            return st.number_input(key, value=value, step=1, key=path)
         if field_type == "float":
-            return st.number_input(key, value=v, step=0.1, format="%.2f", key=path)
+            return st.number_input(key, value=value, step=0.1, format="%.2f", key=path)
         if field_type == "string":
-            return st.text_input(key, value=v, key=path)
+            return st.text_input(key, value=value, key=path)
         if field_type == "json":
             # For nested structures, show as editable JSON text
-            json_str = json.dumps(v, indent=2)
+            json_str = json.dumps(value, indent=2)
             r = st.text_area(key, value=json_str, height=100, key=path)
             try:
                 return json.loads(r)
             except:
                 st.error(f"Invalid JSON in field '{key}'")
-                return v
-        return v
+                return value
+        return value
 
     special_keys = special_keys or []
     result = {}
@@ -226,7 +248,7 @@ def render_json_form(data: Dict, prefix: str = "", special_keys: List[str] | Non
             result[key] = render_json_form(value, path, special_keys=special_keys)
         else:
             # Render a single field
-            result[key] = create_input_field(value)
+            result[key] = create_input_field()
 
     return result
 

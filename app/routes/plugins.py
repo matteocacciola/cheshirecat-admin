@@ -396,14 +396,15 @@ def manage_plugin(plugin_id: str):
     plugin_settings = {}
     if is_plugin_active:
         try:
-            if plugin_settings := get_factory_settings(
-                    client.plugins.get_plugin_settings(plugin_id, agent_id),
-                    is_selected=True
-            ):
+            plugin_settings, plugin_types = get_factory_settings(
+                client.plugins.get_plugin_settings(plugin_id, agent_id),
+                is_selected=True
+            )
+            if plugin_settings:
                 st.subheader("Plugin Settings")
                 with st.form("plugin_settings_form", clear_on_submit=True, enter_to_submit=False):
                     # Render the form
-                    edited_settings = render_json_form(plugin_settings)
+                    edited_settings = render_json_form(plugin_settings, plugin_types)
 
                     if st.form_submit_button("Save Changes"):
                         spinner_container = show_overlay_spinner("Saving plugin settings...")
@@ -428,7 +429,7 @@ You have to activate the plugin before managing its settings.""")
         try:
             plugin_settings = client.admins.get_plugin_settings(plugin_id)
             with st.expander("Plugin's default configuration", icon="⚙️"):
-                st.json(get_factory_settings(plugin_settings, is_selected=True))
+                st.json(get_factory_settings(plugin_settings, is_selected=True)[0])
         except Exception as e:
             st.error(f"Error fetching plugin settings: {e}")
 

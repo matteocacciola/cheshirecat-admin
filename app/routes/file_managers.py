@@ -37,7 +37,7 @@ def _list_file_managers(agent_id: str, cookie_me: Dict | None):
             is_selected = file_manager.name == settings.selected_configuration
             with col1:
                 with st.expander(file_manager.name):
-                    st.json(get_factory_settings(file_manager, is_selected))
+                    st.json(get_factory_settings(file_manager, is_selected)[0])
 
             with col2:
                 if is_selected:
@@ -68,7 +68,7 @@ def _edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool,
 
     st.subheader(f"Editing: **{file_manager_name}**")
     try:
-        file_manager_settings = get_factory_settings(
+        file_manager_settings, file_manager_types = get_factory_settings(
             client.file_manager.get_file_manager_settings(file_manager_name, agent_id),
             is_selected=is_selected
         )
@@ -76,7 +76,7 @@ def _edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool,
             edited_settings = {}
             if file_manager_settings:
                 # Render the form
-                edited_settings = render_json_form(file_manager_settings)
+                edited_settings = render_json_form(file_manager_settings, file_manager_types)
 
             if not edited_settings:
                 st.text("No settings available to edit. Click 'Save' to confirm or 'Back to list' to cancel.")
@@ -111,8 +111,7 @@ def _edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool,
 def file_managers_management(cookie_me: Dict | None):
     st.title("File Managers Management Dashboard")
 
-    st.info("""**Disclaimer**: If you want to store the files of the Knowledge Base in a specific file manager,
-    please select it in the **File Managers** section and enable the `CCAT_RABBIT_HOLE_STORAGE_ENABLED` environment variable in the GrinningCat.""")
+    st.info("**Disclaimer**: a File Manager is used to store the files of the Knowledge Base.")
 
     build_agents_select("file_managers", cookie_me)
     if "agent_id" in st.session_state:

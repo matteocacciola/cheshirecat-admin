@@ -37,7 +37,7 @@ def _list_chunkers(agent_id: str, cookie_me: Dict | None):
             is_selected = chunker.name == settings.selected_configuration
             with col1:
                 with st.expander(chunker.name):
-                    st.json(get_factory_settings(chunker, is_selected))
+                    st.json(get_factory_settings(chunker, is_selected)[0])
 
             with col2:
                 if is_selected:
@@ -68,7 +68,7 @@ def _edit_chunker(agent_id: str, chunker_name: str, is_selected: bool, cookie_me
 
     st.subheader(f"Editing: **{chunker_name}**")
     try:
-        chunker_settings = get_factory_settings(
+        chunker_settings, chunker_types = get_factory_settings(
             client.chunker.get_chunker_settings(chunker_name, agent_id),
             is_selected=is_selected
         )
@@ -76,7 +76,7 @@ def _edit_chunker(agent_id: str, chunker_name: str, is_selected: bool, cookie_me
             edited_settings = {}
             if chunker_settings:
                 # Render the form
-                edited_settings = render_json_form(chunker_settings)
+                edited_settings = render_json_form(chunker_settings, chunker_types)
 
             if not edited_settings:
                 st.text("No settings available to edit. Click 'Save' to confirm or 'Back to list' to cancel.")

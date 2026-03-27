@@ -37,7 +37,7 @@ def _list_vector_databases(agent_id: str, cookie_me: Dict | None):
             is_selected = vector_database.name == settings.selected_configuration
             with col1:
                 with st.expander(vector_database.name):
-                    st.json(get_factory_settings(vector_database, is_selected))
+                    st.json(get_factory_settings(vector_database, is_selected)[0])
 
             with col2:
                 if is_selected:
@@ -68,7 +68,7 @@ def _edit_vector_database(agent_id: str, vector_database_name: str, is_selected:
 
     st.subheader(f"Editing: **{vector_database_name}**")
     try:
-        vector_db_settings = get_factory_settings(
+        vector_db_settings, vector_db_types = get_factory_settings(
             client.vector_database.get_vector_database_settings(vector_database_name, agent_id),
             is_selected=is_selected
         )
@@ -76,7 +76,7 @@ def _edit_vector_database(agent_id: str, vector_database_name: str, is_selected:
             edited_settings = {}
             if vector_db_settings:
                 # Render the form
-                edited_settings = render_json_form(vector_db_settings)
+                edited_settings = render_json_form(vector_db_settings, vector_db_types)
 
             if not edited_settings:
                 st.text("No settings available to edit. Click 'Save' to confirm or 'Back to list' to cancel.")

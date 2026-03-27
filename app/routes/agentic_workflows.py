@@ -37,7 +37,7 @@ def _list_agentic_workflows(agent_id: str, cookie_me: Dict | None):
             is_selected = handler.name == settings.selected_configuration
             with col1:
                 with st.expander(handler.name):
-                    st.json(get_factory_settings(handler, is_selected))
+                    st.json(get_factory_settings(handler, is_selected)[0])
 
             with col2:
                 if is_selected:
@@ -68,7 +68,7 @@ def _edit_agentic_workflow(agent_id: str, handler_name: str, is_selected: bool, 
 
     st.subheader(f"Editing: **{handler_name}**")
     try:
-        handler_settings = get_factory_settings(
+        handler_settings, handler_types = get_factory_settings(
             client.agentic_workflow.get_agentic_workflow_settings(handler_name, agent_id),
             is_selected=is_selected
         )
@@ -76,7 +76,7 @@ def _edit_agentic_workflow(agent_id: str, handler_name: str, is_selected: bool, 
             edited_settings = {}
             if handler_settings:
                 # Render the form
-                edited_settings = render_json_form(handler_settings, special_keys=["metadata"])
+                edited_settings = render_json_form(handler_settings, handler_types, special_keys=["metadata"])
 
             if not edited_settings:
                 st.text("No settings available to edit. Click 'Save' to confirm or 'Back to list' to cancel.")
