@@ -171,7 +171,8 @@ def _list_plugins(cookie_me: Dict | None):
 
     st.header("Available Plugins")
 
-    build_agents_select("plugins", cookie_me)
+    force_system = not cookie_me
+    build_agents_select("plugins", cookie_me, force_system_agent=force_system)
     if "agent_id" not in st.session_state:
         return
 
@@ -182,6 +183,8 @@ def _list_plugins(cookie_me: Dict | None):
 
     if st.session_state.get("agent_id") == DEFAULT_SYSTEM_KEY:
         _list_plugins_admins(client, search_query, cookie_me)
+        if force_system:
+            st.session_state.pop("agent_id", None)
         return
 
     _list_plugins_agents(client, search_query, cookie_me)

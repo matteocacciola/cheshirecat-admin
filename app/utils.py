@@ -57,12 +57,14 @@ def build_agents_options_select(cookie_me: Dict | None, excluded_agents: List[st
     }
 
 
-def build_agents_select(k: str, cookie_me: Dict | None):
+def build_agents_select(k: str, cookie_me: Dict | None, force_system_agent: bool = False):
     if st.session_state.get("agent_id") is not None and cookie_me is not None:
         return  # already selected and logged by credentials
 
     # Navigation
     agent_options = build_agents_options_select(cookie_me)
+    if force_system_agent and DEFAULT_SYSTEM_KEY not in agent_options:
+        agent_options = {DEFAULT_SYSTEM_KEY: slugify(DEFAULT_SYSTEM_KEY)} | agent_options
     if len(agent_options) == 0:
         st.info("No agents found. Please create an agent first.")
         return
