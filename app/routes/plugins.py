@@ -115,8 +115,8 @@ def _render_installed_plugin_agents(p, untoggling_plugins_ids: List[str], cookie
         if not has_access("PLUGIN", "WRITE", cookie_me):
             return
 
-        if p.id not in untoggling_plugins_ids and st.button("Manage", key=f"manage_{p.id}"):
-            manage_plugin(p.id)
+        if st.button("Manage", key=f"manage_{p.id}"):
+            manage_plugin(p.id, untoggling_plugins_ids)
 
 
 def _render_installed_plugin_admins(
@@ -384,7 +384,7 @@ def view_plugin_details(plugin_id: str):
 
 
 @st.dialog(title="Manage Plugin", width="large")
-def manage_plugin(plugin_id: str):
+def manage_plugin(plugin_id: str, untoggling_plugins_ids: List[str]):
     if not (agent_id := st.session_state.get("agent_id")):
         return
 
@@ -447,7 +447,7 @@ You have to activate the plugin before managing its settings.""")
     col1, col2, col3 = st.columns(3)
     # in any case, display a button to toggle / untoggle the plugin
     with col1:
-        if st.button(f"{'Untoggle' if is_plugin_active else 'Toggle'} Plugin"):
+        if plugin_id not in untoggling_plugins_ids and st.button(f"{'Untoggle' if is_plugin_active else 'Toggle'} Plugin"):
             spinner_container = show_overlay_spinner(f"{'Untoggling' if is_plugin_active else 'Toggling'} plugin...")
             try:
                 client.plugins.put_toggle_plugin(plugin_id, agent_id)
