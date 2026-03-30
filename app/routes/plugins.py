@@ -105,7 +105,7 @@ def _render_installed_plugin_common_parts(col0, col1, p):
             st.json(p.model_dump())
 
 
-def _render_installed_plugin_agents(p, cookie_me: Dict | None):
+def _render_installed_plugin_agents(p, untoggling_plugins_ids: List[str], cookie_me: Dict | None):
     """Render a single installed plugin row."""
     col0, col1, col2 = st.columns([0.05, 0.63, 0.32])
 
@@ -115,12 +115,16 @@ def _render_installed_plugin_agents(p, cookie_me: Dict | None):
         if not has_access("PLUGIN", "WRITE", cookie_me):
             return
 
-        if p.id != "base_plugin" and st.button("Manage", key=f"manage_{p.id}"):
+        if p.id not in untoggling_plugins_ids and st.button("Manage", key=f"manage_{p.id}"):
             manage_plugin(p.id)
 
 
 def _render_installed_plugin_admins(
-    p, client: GrinningCatClient, cookie_me: Dict | None, core_plugins_ids: List[str] | None = None,
+    p,
+    client: GrinningCatClient,
+    untoggling_plugins_ids: List[str],
+    cookie_me: Dict | None,
+    core_plugins_ids: List[str] | None = None,
 ):
     """Render a single installed plugin row."""
     col0, col1, col2, col3 = st.columns([0.05, 0.63, 0.1, 0.22])
@@ -138,7 +142,7 @@ def _render_installed_plugin_admins(
         # Toggle / Untoggle or Uninstall button on a system level
         if has_access("SYSTEM", "DELETE", cookie_me, only_admin=True):
             if p.id in core_plugins_ids:
-                if p.id != "base_plugin" and st.button(
+                if p.id not in untoggling_plugins_ids and st.button(
                         f"{'Untoggle' if p.local_info['active'] else 'Toggle'} Plugin",
                         key=f"toggle_{p.id}",
                         help=f"{'Untoggle' if p.local_info['active'] else 'Toggle'} this plugin. This is a core plugin and cannot be uninstalled.",
@@ -308,6 +312,8 @@ def _list_plugins_installed(
     st.markdown(f"Plugins (found {len(plugins.installed)} plugins):")
 
     if plugins.installed:
+        untoggling_plugins_ids = client.custom.get_custom("/admins/core_plugins/untoggling", DEFAULT_SYSTEM_KEY)
+
         paginated_installed, current_page, total_pages = _paginate_items(
             plugins.installed, "installed", ITEMS_PER_PAGE
         )
@@ -315,9 +321,9 @@ def _list_plugins_installed(
         # Display paginated installed plugins
         for p in paginated_installed:
             if st.session_state.get("agent_id") == DEFAULT_SYSTEM_KEY:
-                _render_installed_plugin_admins(p, client, cookie_me, core_plugins_ids)
+                _render_installed_plugin_admins(p, client, untoggling_plugins_ids, cookie_me, core_plugins_ids)
             else:
-                _render_installed_plugin_agents(p, cookie_me)
+                _render_installed_plugin_agents(p, untoggling_plugins_ids, cookie_me)
 
         # Pagination controls for installed plugins
         if total_pages > 1:
