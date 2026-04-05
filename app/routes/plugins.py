@@ -10,7 +10,7 @@ from grinning_cat_python_sdk.models.api.plugins import PluginCollectionOutput
 
 from app.constants import ASSETS_PATH, DEFAULT_SYSTEM_KEY
 from app.utils import (
-    get_factory_settings,
+    get_settings,
     run_toast,
     show_overlay_spinner,
     build_client_configuration,
@@ -405,7 +405,7 @@ def manage_plugin(plugin_id: str, untoggling_plugins_ids: List[str]):
     plugin_settings = {}
     if is_plugin_active:
         try:
-            plugin_settings, plugin_types = get_factory_settings(
+            plugin_settings, plugin_types = get_settings(
                 client.plugins.get_plugin_settings(plugin_id, agent_id),
                 is_selected=True
             )
@@ -438,7 +438,7 @@ You have to activate the plugin before managing its settings.""")
         try:
             plugin_settings = client.admins.get_plugin_settings(plugin_id)
             with st.expander("Plugin's default configuration", icon="⚙️"):
-                st.json(get_factory_settings(plugin_settings, is_selected=True)[0])
+                st.json(get_settings(plugin_settings, is_selected=False)[0])
         except Exception as e:
             st.error(f"Error fetching plugin settings: {e}")
 

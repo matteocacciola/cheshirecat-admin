@@ -1,5 +1,6 @@
 import json
 from typing import Dict, Any, List, Tuple
+from grinning_cat_python_sdk.models.api.nested.plugins import PluginSettingsOutput
 from slugify import slugify
 import streamlit as st
 from grinning_cat_python_sdk import GrinningCatClient, Configuration
@@ -8,6 +9,23 @@ from streamlit_js_eval import set_cookie
 
 from app.constants import DEFAULT_SYSTEM_KEY
 from app.env import get_env, get_env_bool
+
+
+def get_settings(
+    settings: PluginSettingsOutput, is_selected: bool
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    if is_selected:
+        return settings.value, {}
+
+    if not settings.scheme:
+        return {}, {}
+
+    values = {}
+    types = {}
+    for k, v in settings.scheme.properties.items():
+        values[k] = v.default
+        types[k] = v.type
+    return values, types
 
 
 def get_factory_settings(
