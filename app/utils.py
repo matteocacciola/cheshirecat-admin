@@ -219,7 +219,7 @@ def render_json_form(data: Dict, types: Dict, prefix: str = "") -> Dict:
     """Recursively render form fields for JSON data."""
     def infer_type() -> str:
         if value is None:
-            return types.get(key)
+            return types.get(key, "string")
         if isinstance(value, bool):
             return "boolean"
         if isinstance(value, int):
