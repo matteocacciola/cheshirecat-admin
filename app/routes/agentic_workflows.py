@@ -76,7 +76,7 @@ def _edit_agentic_workflow(agent_id: str, handler_name: str, is_selected: bool, 
             edited_settings = {}
             if handler_settings:
                 # Render the form
-                edited_settings = render_json_form(handler_settings, handler_types, special_keys=["metadata"])
+                edited_settings = render_json_form(handler_settings, handler_types)
 
             if not edited_settings:
                 st.text("No settings available to edit. Click 'Save' to confirm or 'Back to list' to cancel.")
