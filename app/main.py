@@ -266,7 +266,7 @@ def _render_sidebar_navigation(cookie_me: Dict | None):
                 # Add separator
                 st.divider()
 
-        if st.session_state.get("agent_id"):
+        if st.session_state.get("agent_id") and cookie_me:
             _build_agents_toggle_select("sidebar_nav", cookie_me)
 
         # System status section
