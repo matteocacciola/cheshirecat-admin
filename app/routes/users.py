@@ -177,7 +177,7 @@ def _list_users(agent_id: str, cookie_me: Dict | None):
             if st.button("Yes, Delete User", type="primary"):
                 try:
                     spinner_container = show_overlay_spinner(f"Deleting user {user.id}...")
-                    client.users.delete_user(agent_id, user.id)
+                    client.users.delete_user(user.id, agent_id)
                     st.toast(f"Admin {user.id} deleted successfully!", icon="✅")
                     st.session_state.pop("user_to_delete", None)
                     time.sleep(1)  # Wait for a moment before rerunning
