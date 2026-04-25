@@ -287,11 +287,12 @@ For security reasons, please consider creating admin users and logging in by cre
         # logout button
         logout_button = st.button("Logout", type="primary", use_container_width=True)
         if logout_button:
-            st.toast("Logged out successfully.", icon="🚪")
+            st.session_state.clear()
             clear_auth_cookies()
+
+            st.toast("Logged out successfully.", icon="🚪")
             time.sleep(1)  # Wait for a moment before rerunning
 
-            st.session_state.clear()
             st.rerun()
 
 
