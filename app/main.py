@@ -12,6 +12,7 @@ from app.env import get_env
 from app.routes.agentic_workflows import agentic_workflows_management
 from app.routes.auth_handlers import auth_handlers_management
 from app.routes.chunkers import chunkers_management
+from app.routes.context_retriever import context_retrievers_management
 from app.routes.embedders import embedders_management
 from app.routes.file_managers import file_managers_management
 from app.routes.llms import llms_management
@@ -186,11 +187,7 @@ def _render_sidebar_navigation(cookie_me: Dict | None):
                 "allowed": has_access("USERS", None, cookie_me),
             },
         },
-        "menu_management": {
-            "🔌 Plugins": {
-                "page": "plugins",
-                "allowed": has_access("PLUGIN", None, cookie_me),
-            },
+        "menu_ai": {
             "🧬 AI Models": {
                 "page": "ai_models",
                 "allowed": has_access("LLM", None, cookie_me) and not is_system_agent_selected(),
@@ -199,26 +196,38 @@ def _render_sidebar_navigation(cookie_me: Dict | None):
                 "page": "agentic_workflows",
                 "allowed": has_access("AGENTIC_WORKFLOW", None, cookie_me) and not is_system_agent_selected(),
             },
-            "🔐 Authentication Handlers": {
-                "page": "auth_handlers",
-                "allowed": has_access("AUTH_HANDLER", None, cookie_me) and not is_system_agent_selected(),
+            "🧠 Embedders": {
+                "page": "embedders",
+                "allowed": has_access("EMBEDDER", None, cookie_me, only_admin=True),
             },
+        },
+        "menu_data": {
             "🔪 Chunkers": {
                 "page": "chunkers",
                 "allowed": has_access("CHUNKER", None, cookie_me) and not is_system_agent_selected(),
             },
-            "🧠 Embedders": {
-                "page": "embedders",
-                "allowed": has_access("EMBEDDER", None, cookie_me, only_admin=True),
+            "👨‍💼 Context Retrievers": {
+                "page": "context_retrievers",
+                "allowed": has_access("CONTEXT_RETRIEVER", None, cookie_me) and not is_system_agent_selected(),
+            },
+            "🔗 Vector Databases": {
+                "page": "vector_databases",
+                "allowed": has_access("VECTOR_DATABASE", None, cookie_me) and not is_system_agent_selected(),
+            },
+        },
+        "menu_infra": {
+            "🔌 Plugins": {
+                "page": "plugins",
+                "allowed": has_access("PLUGIN", None, cookie_me),
+            },
+            "🔐 Authentication Handlers": {
+                "page": "auth_handlers",
+                "allowed": has_access("AUTH_HANDLER", None, cookie_me) and not is_system_agent_selected(),
             },
             "📁 File Handlers": {
                 "page": "file_handlers",
                 "allowed": has_access("FILE_MANAGER", None, cookie_me) and not is_system_agent_selected(),
             },
-            "🔗 Vector Databases": {
-                "page": "vector_databases",
-                "allowed": has_access("VECTOR_DATABASE", None, cookie_me) and not is_system_agent_selected(),
-            }
         },
         "menu_system": {
             "⚙️ System": {
@@ -373,6 +382,10 @@ async def _main():
 
     if current_page == "chunkers":
         chunkers_management(cookie_me)
+        return
+
+    if current_page == "context_retrievers":
+        context_retrievers_management(cookie_me)
         return
 
     if current_page == "embedders":
