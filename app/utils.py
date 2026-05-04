@@ -5,7 +5,7 @@ from slugify import slugify
 import streamlit as st
 from grinning_cat_python_sdk import GrinningCatClient, Configuration
 from grinning_cat_python_sdk.models.api.factories import FactoryObjectSettingOutput
-from streamlit_js_eval import set_cookie
+from streamlit_js_eval import set_local_storage
 
 from app.constants import DEFAULT_SYSTEM_KEY
 from app.env import get_env, get_env_bool
@@ -287,8 +287,8 @@ def has_access(resource: str, required_role: str | None, cookie_me: Dict | None,
 
 def clear_auth_cookies():
     """Clear authentication-related cookies."""
-    set_cookie("token", "", duration_days=-1)
-    set_cookie("me", "", duration_days=-1)
+    set_local_storage("token", "")
+    set_local_storage("me", "")
 
 
 def is_system_agent_selected() -> bool:
@@ -304,8 +304,4 @@ def cache_cookie_me():
     st.session_state["me"] = me_data
 
     # Also update cookie for persistence across sessions
-    set_cookie(
-        "me",
-        json.dumps(me_data),
-        duration_days=int(get_env("GRINNING_CAT_JWT_EXPIRE_MINUTES")) / (60 * 24),
-    )
+    set_local_storage("me", json.dumps(me_data))

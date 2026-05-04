@@ -1,6 +1,6 @@
 import time
 import streamlit as st
-from streamlit_js_eval import set_cookie
+from streamlit_js_eval import set_local_storage
 from grinning_cat_python_sdk import GrinningCatClient
 
 from app.env import get_env
@@ -31,7 +31,7 @@ def login_page():
             token = token_response.access_token
 
             st.session_state["token"] = token
-            set_cookie("token", token, duration_days=int(get_env("GRINNING_CAT_JWT_EXPIRE_MINUTES")) / (60 * 24))
+            set_local_storage("token", token)
 
             # now, trigger /me endpoint to cache user info
             cache_cookie_me()

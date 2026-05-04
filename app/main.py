@@ -5,7 +5,7 @@ from typing import Dict
 import streamlit as st
 from dotenv import load_dotenv
 from grinning_cat_python_sdk import GrinningCatClient
-from streamlit_js_eval import get_cookie
+from streamlit_js_eval import get_local_storage
 
 from app.constants import CHECK_INTERVAL, WELCOME_MESSAGE
 from app.env import get_env
@@ -42,7 +42,7 @@ def _get_cookie_me() -> Dict | None:
         return st.session_state["me"]
 
     # Fall back to cookie (for page refreshes/new sessions)
-    cookie_me = get_cookie("me")
+    cookie_me = get_local_storage("me")
     if not cookie_me:
         return None
 
@@ -332,7 +332,7 @@ async def _main():
             st.session_state["initial_auth_check_done"] = True
 
             # Try to get cookie (async - returns None initially)
-            cookie_token = get_cookie("token")
+            cookie_token = get_local_storage("token")
             if cookie_token:
                 # If we get a token immediately (rare), use it
                 st.session_state["token"] = cookie_token
@@ -345,7 +345,7 @@ async def _main():
             return
 
         # Normal flow continues after initial check
-        cookie_token = get_cookie("token")  # Try again after async result
+        cookie_token = get_local_storage("token")  # Try again after async result
         if cookie_token:
             st.session_state["token"] = cookie_token
             time.sleep(1)
