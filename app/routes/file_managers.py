@@ -72,7 +72,7 @@ def _edit_file_manager(agent_id: str, file_manager_name: str, is_selected: bool,
             client.file_manager.get_file_manager_settings(file_manager_name, agent_id),
             is_selected=is_selected
         )
-        with st.form("edit_file_manager_form", clear_on_submit=True, enter_to_submit=False):
+        with st.form("edit_file_manager_form", clear_on_submit=True, enter_to_submit=True):
             edited_settings = {}
             if file_manager_settings:
                 # Render the form

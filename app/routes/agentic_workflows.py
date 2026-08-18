@@ -72,7 +72,7 @@ def _edit_agentic_workflow(agent_id: str, handler_name: str, is_selected: bool, 
             client.agentic_workflow.get_agentic_workflow_settings(handler_name, agent_id),
             is_selected=is_selected
         )
-        with st.form("edit_agentic_workflow_form", clear_on_submit=True, enter_to_submit=False):
+        with st.form("edit_agentic_workflow_form", clear_on_submit=True, enter_to_submit=True):
             edited_settings = {}
             if handler_settings:
                 # Render the form

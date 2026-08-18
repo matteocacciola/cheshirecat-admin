@@ -72,7 +72,7 @@ def _edit_auth_handler(agent_id: str, handler_name: str, is_selected: bool, cook
             client.auth_handler.get_auth_handler_settings(handler_name, agent_id),
             is_selected=is_selected
         )
-        with st.form("edit_auth_handler_form", clear_on_submit=True, enter_to_submit=False):
+        with st.form("edit_auth_handler_form", clear_on_submit=True, enter_to_submit=True):
             edited_settings = {}
             if handler_settings:
                 # Render the form

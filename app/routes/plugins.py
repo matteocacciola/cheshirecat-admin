@@ -411,7 +411,7 @@ def manage_plugin(plugin_id: str, untoggling_plugins_ids: List[str]):
             )
             if plugin_settings:
                 st.subheader("Plugin Settings")
-                with st.form("plugin_settings_form", clear_on_submit=True, enter_to_submit=False):
+                with st.form("plugin_settings_form", clear_on_submit=True, enter_to_submit=True):
                     # Render the form
                     edited_settings = render_json_form(plugin_settings, plugin_types)
 

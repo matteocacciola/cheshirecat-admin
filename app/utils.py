@@ -1,5 +1,6 @@
 import base64
 import json
+import re
 import time
 from typing import Dict, Any, List, Tuple
 from grinning_cat_python_sdk.models.api.nested.plugins import PluginSettingsOutput
@@ -26,7 +27,13 @@ def get_settings(
     types = {}
     for k, v in settings.scheme.properties.items():
         values[k] = v.default
-        types[k] = v.type
+        descriptor = {"type": v.type or "string"}
+        # best effort: the SDK model may surface description/enum via `extra`
+        if v.extra and isinstance(v.extra, dict):
+            for field in ("description", "enum", "format"):
+                if field in v.extra:
+                    descriptor[field] = v.extra[field]
+        types[k] = descriptor
     return values, types
 
 
@@ -43,9 +50,10 @@ def get_factory_settings(
     Returns:
         A tuple containing two dictionaries:
             - The first dictionary contains the current values of the factory settings.
-            - The second dictionary contains the types of the factory settings.
+            - The second dictionary contains per-field descriptors with the field
+              type and any JSON-Schema metadata (description, enum, format).
     """
-    def get_type():
+    def get_type(v):
         if "type" in v:
             return v["type"]
         if "anyOf" in v:
@@ -61,7 +69,11 @@ def get_factory_settings(
     for k, v in factory.scheme.get("properties", {}).items():
         if isinstance(v, dict):
             values[k] = v.get("default")
-            types[k] = get_type()
+            descriptor = {"type": get_type(v)}
+            for field in ("description", "enum", "format"):
+                if field in v and v[field] is not None:
+                    descriptor[field] = v[field]
+            types[k] = descriptor
     return values, types
 
 
@@ -218,10 +230,18 @@ def build_client_configuration():
 
 
 def render_json_form(data: Dict, types: Dict, prefix: str = "") -> Dict:
-    """Recursively render form fields for JSON data."""
+    """Recursively render form fields for JSON data.
+
+    `types` maps each field name to either a plain type string (legacy) or a
+    descriptor dict with keys: type, description, enum, format. Descriptors
+    come from the JSON-Schema produced by Pydantic, so the description is
+    shown as a help tooltip, enum values become a chooser and password-like
+    fields are rendered masked (Streamlit adds a native show/hide eye icon).
+    """
+
     def infer_type() -> str:
         if value is None:
-            return types.get(key, "string")
+            return types.get(key, "string") if isinstance(types.get(key), str) else "string"
         if isinstance(value, bool):
             return "boolean"
         if isinstance(value, int):
@@ -234,20 +254,57 @@ def render_json_form(data: Dict, types: Dict, prefix: str = "") -> Dict:
             return "json"
         return "string"
 
+    def get_descriptor() -> Dict[str, Any]:
+        t = types.get(key, "string")
+        if isinstance(t, dict):
+            return t
+        return {"type": t}
+
+    def is_secret_field() -> bool:
+        desc = get_descriptor()
+        if desc.get("format") in ("password", "api-key", "secret", "bearer"):
+            return True
+        name = key.lower()
+        return (
+            "password" in name
+            or name.endswith("api_key")
+            or name.endswith("apikey")
+            or name.endswith("secret")
+            or name.endswith("_key")
+            or name.endswith("_token")
+            or name == "token"
+        )
+
     def create_input_field() -> Any:
+        desc = get_descriptor()
         field_type = infer_type()
+        hint = desc.get("description")
+
+        # Enum values -> chooser (selectbox)
+        enum_values = desc.get("enum")
+        if isinstance(enum_values, list) and enum_values:
+            options = [str(o) for o in enum_values]
+            current = "" if value is None else str(value)
+            if current not in options:
+                options = [current] + options if current else options
+            index = options.index(current) if current in options else 0
+            return st.selectbox(key, options, index=index, key=path, help=hint)
+
         if field_type == "boolean":
-            return st.checkbox(key, value=value, key=path)
+            return st.checkbox(key, value=value, key=path, help=hint)
         if field_type == "integer":
-            return st.number_input(key, value=value, step=1, key=path)
+            return st.number_input(key, value=value, step=1, key=path, help=hint)
         if field_type == "float":
-            return st.number_input(key, value=value, step=0.1, format="%.2f", key=path)
+            return st.number_input(key, value=value, step=0.1, format="%.2f", key=path, help=hint)
         if field_type == "string":
-            return st.text_input(key, value=value, key=path)
+            if is_secret_field():
+                # type="password" gives Streamlit's native show/hide eye toggle
+                return st.text_input(key, value=value, type="password", key=path, help=hint)
+            return st.text_input(key, value=value, key=path, help=hint)
         if field_type == "json":
             # For nested structures, show as editable JSON text
             json_str = json.dumps(value, indent=2)
-            r = st.text_area(key, value=json_str, height=100, key=path)
+            r = st.text_area(key, value=json_str, height=100, key=path, help=hint)
             try:
                 return json.loads(r)
             except:

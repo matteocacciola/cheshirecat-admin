@@ -71,7 +71,7 @@ def _edit_embedder(embedder_name: str, is_selected: bool, cookie_me: Dict | None
             client.embedder.get_embedder_settings(embedder_name),
             is_selected=is_selected,
         )
-        with st.form("edit_embedder_form", clear_on_submit=True, enter_to_submit=False):
+        with st.form("edit_embedder_form", clear_on_submit=True, enter_to_submit=True):
             edited_settings = {}
             if embedder_settings:
                 # Render the form
