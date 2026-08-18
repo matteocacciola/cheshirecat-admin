@@ -257,17 +257,26 @@ def _edit_chat_files(agent_id: str, conversation_id: str, cookie_me: Dict | None
             col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
 
             with col1:
-                chunks = client.memory.get_memory_points(
+                # Extracted-image files store the source document under
+                # metadata.source and the saved image file name under
+                # metadata.image_file: count both (disjoint queries).
+                chunks_source = client.memory.get_memory_points(
                     agent_id=agent_id,
                     collection="episodic",
                     metadata={"source": file.name, "chat_id": conversation_id},
                 )
+                chunks_image = client.memory.get_memory_points(
+                    agent_id=agent_id,
+                    collection="episodic",
+                    metadata={"image_file": file.name, "chat_id": conversation_id},
+                )
+                chunks_count = len(chunks_source.points) + len(chunks_image.points)
 
                 with st.expander(f"{file.name} ({file.size} bytes)"):
                     st.write(f"**Name**: {file.name}")
                     st.write(f"**Size**: {file.size}")
                     st.write(f"**Last modified**: {file.last_modified}")
-                    st.write(f"**Chunks**: {len(chunks.points)}")
+                    st.write(f"**Chunks**: {chunks_count}")
 
             with col2:
                 # Use a regular button instead of download_button
