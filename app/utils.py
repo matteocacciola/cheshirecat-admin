@@ -17,23 +17,21 @@ from app.env import get_env, get_env_bool
 def get_settings(
     settings: PluginSettingsOutput, is_selected: bool
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    if is_selected:
-        return settings.value, {}
+    # values come from the saved config when selected, from scheme defaults otherwise
+    values = dict(settings.value) if is_selected else {}
 
-    if not settings.scheme:
-        return {}, {}
-
-    values = {}
     types = {}
-    for k, v in settings.scheme.properties.items():
-        values[k] = v.default
-        descriptor = {"type": v.type or "string"}
-        # best effort: the SDK model may surface description/enum via `extra`
-        if v.extra and isinstance(v.extra, dict):
-            for field in ("description", "enum", "format"):
-                if field in v.extra:
-                    descriptor[field] = v.extra[field]
-        types[k] = descriptor
+    if settings.scheme:
+        for k, v in settings.scheme.properties.items():
+            if k not in values:
+                values[k] = v.default
+            descriptor = {"type": v.type or "string"}
+            # best effort: the SDK model may surface description/enum via `extra`
+            if v.extra and isinstance(v.extra, dict):
+                for field in ("description", "enum", "format"):
+                    if field in v.extra:
+                        descriptor[field] = v.extra[field]
+            types[k] = descriptor
     return values, types
 
 
@@ -61,19 +59,20 @@ def get_factory_settings(
             return tmp_types[0] if tmp_types else "string"
         return "string"
 
-    if is_selected:
-        return factory.value, {}
+    # values come from the saved config when selected, from scheme defaults otherwise
+    values = dict(factory.value) if is_selected else {}
 
-    values = {}
     types = {}
-    for k, v in factory.scheme.get("properties", {}).items():
-        if isinstance(v, dict):
-            values[k] = v.get("default")
-            descriptor = {"type": get_type(v)}
-            for field in ("description", "enum", "format"):
-                if field in v and v[field] is not None:
-                    descriptor[field] = v[field]
-            types[k] = descriptor
+    if factory.scheme:
+        for k, v in factory.scheme.get("properties", {}).items():
+            if isinstance(v, dict):
+                if k not in values:
+                    values[k] = v.get("default")
+                descriptor = {"type": get_type(v)}
+                for field in ("description", "enum", "format"):
+                    if field in v and v[field] is not None:
+                        descriptor[field] = v[field]
+                types[k] = descriptor
     return values, types
 
 
