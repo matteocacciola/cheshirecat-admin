@@ -1,11 +1,13 @@
+import base64
 import json
+import time
 from typing import Dict, Any, List, Tuple
 from grinning_cat_python_sdk.models.api.nested.plugins import PluginSettingsOutput
 from slugify import slugify
 import streamlit as st
 from grinning_cat_python_sdk import GrinningCatClient, Configuration
 from grinning_cat_python_sdk.models.api.factories import FactoryObjectSettingOutput
-from streamlit_js_eval import set_local_storage
+from streamlit_js_eval import get_local_storage, set_local_storage, remove_local_storage
 
 from app.constants import DEFAULT_SYSTEM_KEY
 from app.env import get_env, get_env_bool
@@ -286,22 +288,138 @@ def has_access(resource: str, required_role: str | None, cookie_me: Dict | None,
 
 
 def clear_auth_cookies():
-    """Clear authentication-related cookies."""
-    set_local_storage("token", "")
-    set_local_storage("me", "")
+    """Clear authentication-related localStorage entries."""
+    remove_local_storage("token")
+    remove_local_storage("me")
 
 
 def is_system_agent_selected() -> bool:
     return st.session_state.get("agent_id") == DEFAULT_SYSTEM_KEY
 
 
-def cache_cookie_me():
+def _get_exp_from_jwt(token: str) -> int:
+    """
+    Extract the 'exp' claim (unix timestamp) from a JWT token payload.
+    Falls back to now + GRINNING_CAT_JWT_EXPIRE_MINUTES if the token is not a
+    decodable JWT (e.g. API-key mode), so the expiry simulation always yields a
+    timestamp.
+    """
+    try:
+        payload = token.split(".")[1]
+        # base64url decode with padding
+        padding = "=" * (-len(payload) % 4)
+        decoded = base64.urlsafe_b64decode(payload + padding)
+        claims = json.loads(decoded)
+        exp = claims.get("exp")
+        if isinstance(exp, int):
+            return exp
+    except Exception:
+        pass
+
+    return int(time.time()) + int(get_env("GRINNING_CAT_JWT_EXPIRE_MINUTES")) * 60
+
+
+def _set_with_expiry(key: str, value: str, token: str):
+    """
+    Write a value to localStorage wrapped in an envelope:
+        {"value": ..., "expire": <unix timestamp>}
+    The expire timestamp is derived from the JWT exp claim so the simulated
+    expiry is aligned with the server-side token validity.
+    """
+    envelope = {"value": value, "expire": _get_exp_from_jwt(token)}
+    set_local_storage(key, json.dumps(envelope))
+
+
+def _get_with_expiry(key: str, component_key: str | None = None) -> str | None:
+    """
+    Read a value from localStorage, honoring the simulated expiry envelope.
+    Returns None (and removes the entry) if the stored expire timestamp is in
+    the past. If the stored value is not an envelope (legacy/plain data), it is
+    returned as-is for backward compatibility.
+    """
+    raw = get_local_storage(key, component_key=component_key)
+    if not raw:
+        return None
+
+    try:
+        envelope = json.loads(raw)
+        if not isinstance(envelope, dict) or "expire" not in envelope:
+            # Not an envelope written by us: legacy value, treat as valid.
+            return envelope if isinstance(envelope, str) else raw
+        if int(envelope.get("expire", 0)) < int(time.time()):
+            # Simulated expiry reached: drop the entry and treat as logged out.
+            remove_local_storage(key)
+            return None
+        return envelope.get("value")
+    except json.JSONDecodeError:
+        # Plain (non-JSON) value stored by older code or tests.
+        return raw
+
+
+def _decode_agents(raw_agents: list) -> list:
+    """
+    Decode the agents list from the JWT response.
+    Each element may be either a dict (already decoded) or a JSON string
+    (as returned by model_dump() on the SDK's JWTPayload model).
+    """
+    result = []
+    for item in raw_agents:
+        if isinstance(item, str):
+            try:
+                result.append(json.loads(item))
+            except json.JSONDecodeError:
+                pass
+        elif isinstance(item, dict):
+            result.append(item)
+    return result
+
+
+def _build_me_data() -> Dict:
+    """
+    Call /auth/me and return a normalised me_data dict.
+    Stores the result in st.session_state["me"] but does NOT write any
+    localStorage entry. Use this at login time so that st.rerun() does not
+    race with set_local_storage().
+    """
     client = GrinningCatClient(build_client_configuration())
     res = client.auth.me(st.session_state.get("token"))
-    me_data = res.model_dump()
+    raw = res.model_dump()
 
-    # Store in session state for immediate access
+    decoded_agents = _decode_agents(raw.get("agents", []))
+    first_user = decoded_agents[0].get("user", {}) if decoded_agents else {}
+    me_data = {
+        "username": raw.get("sub", ""),
+        "id": first_user.get("id", ""),
+        "exp": raw.get("exp", ""),
+        "agents": decoded_agents,
+    }
     st.session_state["me"] = me_data
+    return me_data
 
-    # Also update cookie for persistence across sessions
-    set_local_storage("me", json.dumps(me_data))
+
+def write_me_data(me_data: Dict, token: str):
+    """
+    Write the minimal me envelope to localStorage.
+    Call this only when you are NOT about to call st.rerun() in the same
+    render cycle, otherwise the local-storage write will race with the rerun.
+    """
+    me_minimal = {
+        "username": me_data["username"],
+        "id": me_data["id"],
+        "exp": me_data["exp"],
+    }
+    _set_with_expiry("me", json.dumps(me_minimal), token)
+
+
+def cache_cookie_me():
+    """
+    Convenience wrapper: fetch /auth/me, store in session_state AND write the
+    minimal localStorage envelope.
+    Use this only on page-refresh rehydration (where no st.rerun() follows
+    immediately). At login time, call _build_me_data() instead.
+    """
+    token = st.session_state.get("token")
+    if not token:
+        return None
+    me_data = _build_me_data()
+    write_me_data(me_data, token)
