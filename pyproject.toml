@@ -12,7 +12,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "grinning-cat-python-sdk",
+    "grinning-cat-python-sdk @ git+https://github.com/DEH-RAG/grinning-cat-python-sdk.git@v1.0.4",
     "streamlit-js-eval",
     "python-dotenv",
     "python-slugify",
