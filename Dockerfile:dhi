@@ -3,7 +3,7 @@ FROM dhi.io/python:3.13-dev AS builder
 
 # Lib di sistema necessarie (python-magic -> libmagic1)
 RUN apt-get update \
- && apt-get install -y --no-install-recommends libmagic1 \
+ && apt-get install -y --no-install-recommends libmagic1 git \
  && rm -rf /var/lib/apt/lists/*
 
 # copio la lib indipendentemente dalla platform
