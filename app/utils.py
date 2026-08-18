@@ -26,11 +26,14 @@ def get_settings(
             if k not in values:
                 values[k] = v.default
             descriptor = {"type": v.type or "string"}
-            # best effort: the SDK model may surface description/enum via `extra`
-            if v.extra and isinstance(v.extra, dict):
-                for field in ("description", "enum", "format"):
-                    if field in v.extra:
-                        descriptor[field] = v.extra[field]
+            # PropertySettingsOutput exposes JSON-Schema metadata directly; also
+            # fall back to `extra` for older SDK versions that only surface it there.
+            for field in ("description", "enum", "format"):
+                val = getattr(v, field, None)
+                if val is None and v.extra and isinstance(v.extra, dict):
+                    val = v.extra.get(field)
+                if val is not None:
+                    descriptor[field] = val
             types[k] = descriptor
     return values, types
 
