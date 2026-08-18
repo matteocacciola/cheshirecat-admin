@@ -1,3 +1,10 @@
+
+# OpenCode
+.omo/
+.opencode/
+.sisyphus/
+AGENTS.md
+
 __pycache__
 *.egg-info
 .env
