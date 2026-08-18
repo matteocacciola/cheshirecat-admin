@@ -101,7 +101,7 @@ def _render_installed_plugin_common_parts(col0, col1, p):
         # st.image(img, width="stretch")
 
     with col1:
-        with st.expander(f"Plugin: {p.name} (ID: {p.id})", icon="🔌"):
+        with st.expander(f"{p.name} (ID: {p.id})", icon="🔌"):
             st.json(p.model_dump())
 
 
@@ -268,7 +268,7 @@ def _list_plugins_admins(client: GrinningCatClient, search_query: str, cookie_me
                     # st.image(img, width="stretch")
 
                 with col1:
-                    with st.expander(f"Plugin: {registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
+                    with st.expander(f"{registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
                         st.write(f"**Version**: {registry_plugin.version}")
                         st.write(f"**Author**: {registry_plugin.author_name} - [Profile]({registry_plugin.author_url})")
                         st.write(f"**Description**: {registry_plugin.description or 'No description provided'}")
