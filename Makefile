@@ -18,3 +18,11 @@ update: ## Update and compile requirements for the local virtual environment.
 
 run:  ## Run the application client
 	@$(PYTHON) -m streamlit run app/main.py
+
+dhi:
+	git pull
+	docker pull dhi.io/uv:0
+	docker pull dhi.io/python:3.13
+	docker pull dhi.io/python:3.13-dev
+	uv pip compile -U -o requirements.txt pyproject.toml
+	docker buildx build . -f Dockerfile:dhi -t grinning-cat-admin:dhi

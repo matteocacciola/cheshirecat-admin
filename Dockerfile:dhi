@@ -1,0 +1,49 @@
+# Stage 1: builder / dev (ha shell + apt)
+FROM dhi.io/python:3.13-dev AS builder
+
+# Lib di sistema necessarie (python-magic -> libmagic1)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libmagic1 \
+ && rm -rf /var/lib/apt/lists/*
+
+# copio la lib indipendentemente dalla platform
+RUN mkdir -p /export-libs \
+ && cp -d /usr/lib/*-linux-gnu/libmagic.so.* /export-libs/
+
+# Porta dentro uv/uvx
+COPY --from=dhi.io/uv:0 /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
+
+WORKDIR /app
+
+# Dipendenze per caching
+COPY pyproject.toml requirements.txt ./
+
+RUN uv venv .venv \
+ && uv pip install -r requirements.txt
+
+# Codice sorgente
+COPY . .
+
+# Stage 2: runtime (nessuna shell, nessun apt)
+FROM dhi.io/python:3.13 AS runtime
+
+WORKDIR /app
+
+# Copia solo le librerie di runtime di libmagic dal builder
+COPY --from=builder /export-libs/ /usr/lib/
+COPY --from=builder /usr/share/file/magic.mgc /usr/share/file/magic.mgc
+
+# Copia ambiente virtuale + codice
+COPY --from=builder /app /app
+
+# Configurazione ambiente
+ENV STREAMLIT_SERVER_PORT=8501 \
+    STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
+    PYTHONPATH=/app \
+    MAGIC=/usr/share/file/magic.mgc \
+    PATH="/app/.venv/bin:$PATH"
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "app/main.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"]
+
