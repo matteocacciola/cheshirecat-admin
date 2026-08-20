@@ -21,8 +21,13 @@ COPY pyproject.toml requirements.txt ./
 RUN uv venv .venv \
  && uv pip install -r requirements.txt
 
-# Codice sorgente
-COPY . .
+# Codice sorgente (whitelist esplicita: solo il necessario, niente tooling/secreti)
+COPY app/ ./app/
+COPY .streamlit/ ./ .streamlit/
+
+# Pulizia caches e bytecode prima di copiare nel runtime
+RUN find /app -type d -name __pycache__ -prune -exec rm -rf {} + \
+ && find /app -type f -name "*.pyc" -delete
 
 # Stage 2: runtime (nessuna shell, nessun apt)
 FROM dhi.io/python:3.13 AS runtime
@@ -33,14 +38,17 @@ WORKDIR /app
 COPY --from=builder /export-libs/ /usr/lib/
 COPY --from=builder /usr/share/file/magic.mgc /usr/share/file/magic.mgc
 
-# Copia ambiente virtuale + codice
-COPY --from=builder /app /app
+# Copia ambiente virtuale + codice (solo whitelist, non l'intero /app)
+COPY --from=builder /app/app /app/app
+COPY --from=builder /app/.streamlit /app/.streamlit
+COPY --from=builder /app/.venv /app/.venv
 
 # Configurazione ambiente
 ENV STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
     PYTHONPATH=/app \
     MAGIC=/usr/share/file/magic.mgc \
+    PYTHONDONTWRITEBYTECODE=1 \
     PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8501

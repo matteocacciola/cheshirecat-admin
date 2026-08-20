@@ -9,3 +9,10 @@ venv/
 .env*.local
 .DS_Store
 .env
+.opencode/
+.sisyphus/
+.omo/
+.github/
+*.egg-info
+dist/
+build/
