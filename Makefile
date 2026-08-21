@@ -11,17 +11,16 @@ install: ## Install the Python libraries in a virtual environment
 	@$(PYTHON) -m pip install --no-cache-dir -r requirements.txt
 
 compile: ## Compile the pyproject.toml file to requirements.txt
-	@pip-compile --output-file=requirements.txt --strip-extras pyproject.toml
+	@uv pip compile --output-file=requirements.txt --strip-extras pyproject.toml
 
 update: ## Update and compile requirements for the local virtual environment.
-	@pip-compile --upgrade --output-file requirements.txt pyproject.toml
+	@uv pip compile --upgrade --output-file requirements.txt pyproject.toml
 
 run:  ## Run the application client
 	@$(PYTHON) -m streamlit run app/main.py
 
 dev:
 	git pull
-	docker pull dhi.io/uv:0
 	docker pull dhi.io/python:3.13
 	docker pull dhi.io/python:3.13-dev
 	uv pip compile -U -o requirements.txt pyproject.toml

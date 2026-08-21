@@ -10,16 +10,14 @@ RUN apt-get update \
 RUN mkdir -p /export-libs \
  && cp -d /usr/lib/*-linux-gnu/libmagic.so.* /export-libs/
 
-# Porta dentro uv/uvx
-COPY --from=dhi.io/uv:0 /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
-
 WORKDIR /app
 
 # Dipendenze per caching
 COPY pyproject.toml requirements.txt ./
 
-RUN uv venv .venv \
- && uv pip install -r requirements.txt
+# niente uv: il venv lo crea python direttamente (pip da ensurepip)
+RUN python -m venv .venv \
+ && .venv/bin/pip install --no-cache-dir -r requirements.txt
 
 # Codice sorgente (whitelist esplicita: solo il necessario, niente tooling/secreti)
 COPY app/ ./app/
