@@ -13,11 +13,13 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "grinning-cat-python-sdk @ git+https://github.com/DEH-RAG/grinning-cat-python-sdk.git@v1.0.4",
-    "streamlit-js-eval",
-    "python-dotenv",
-    "python-slugify",
-    "requests",
-    "streamlit",
+    "msgpack>=1.2.1,<=2.0.0",
+    "python-dotenv>=1.2.0,<=2.0.0",
+    "python-slugify>=8.0.0,<=9.0.0",
+    "requests>=2.34.0,<=3.0.0",
+    "setuptools>=83.0.0,<=84.0.0",
+    "streamlit>=1.62.0,<=2.0.0",
+    "streamlit-js-eval>=1.0.0,<=2.0.0",
 ]
 
 [project.urls]

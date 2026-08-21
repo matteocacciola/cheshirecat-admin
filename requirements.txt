@@ -52,6 +52,8 @@ markupsafe==3.0.3
     # via jinja2
 mccabe==0.7.0
     # via pylint
+msgpack==1.2.1
+    # via grinning-cat-admin (pyproject.toml)
 narwhals==2.25.0
     # via altair
 numpy==2.5.2
@@ -110,6 +112,8 @@ rpds-py==2026.6.3
     # via
     #   jsonschema
     #   referencing
+setuptools==84.0.0
+    # via grinning-cat-admin (pyproject.toml)
 six==1.17.0
     # via python-dateutil
 starlette==1.6.0
