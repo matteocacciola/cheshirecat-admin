@@ -14,10 +14,11 @@ WORKDIR /app
 COPY requirements.txt ./
 
 # niente uv: il venv lo crea python direttamente (pip da ensurepip)
+RUN python -m venv .venv
+
 # cache mount: i download pip sopravvivono ai rebuild, senza sporcare il layer
 RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m venv .venv \
- && .venv/bin/pip install -r requirements.txt
+    .venv/bin/pip install -r requirements.txt
 
 # Codice sorgente (whitelist esplicita: solo il necessario, niente tooling/secreti)
 COPY app/ ./app/
