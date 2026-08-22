@@ -133,11 +133,8 @@ tomlkit==0.15.1
 typing-extensions==4.16.0
     # via
     #   altair
-    #   anyio
     #   pydantic
     #   pydantic-core
-    #   referencing
-    #   starlette
     #   streamlit
     #   typing-inspection
 typing-inspection==0.4.4
