@@ -245,7 +245,7 @@ def _list_plugins_admins(client: GrinningCatClient, search_query: str, cookie_me
 
         if plugins.registry:
             sorted_registry = sorted(
-                plugins.registry, key=lambda x: (x.description or "").lower()
+                plugins.registry, key=lambda x: (x.name or "").lower()
             )
             paginated_registry, current_page, total_pages = _paginate_items(
                 sorted_registry, "registry", ITEMS_PER_PAGE
@@ -317,7 +317,7 @@ def _list_plugins_installed(
         untoggling_plugins_ids = client.custom.get_custom("/admins/core_plugins/untoggling", DEFAULT_SYSTEM_KEY)
 
         sorted_installed = sorted(
-            plugins.installed, key=lambda x: (x.description or "").lower()
+            plugins.installed, key=lambda x: (x.name or "").lower()
         )
         paginated_installed, current_page, total_pages = _paginate_items(
             sorted_installed, "installed", ITEMS_PER_PAGE
