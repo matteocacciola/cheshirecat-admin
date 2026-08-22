@@ -1,27 +1,27 @@
 # Stage 1: builder / dev (ha shell + apt)
 FROM dhi.io/python:3.13-dev AS builder
 
-# Lib di sistema necessarie (python-magic -> libmagic1)
+# Lib di sistema + export libmagic (layer unico: cambia raramente)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libmagic1 git \
- && rm -rf /var/lib/apt/lists/*
-
-# copio la lib indipendentemente dalla platform
-RUN mkdir -p /export-libs \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /export-libs \
  && cp -d /usr/lib/*-linux-gnu/libmagic.so.* /export-libs/
 
 WORKDIR /app
 
-# Dipendenze per caching
-COPY pyproject.toml requirements.txt ./
+# Solo requirements.txt: pyproject.toml non è letto da `pip install -r`
+COPY requirements.txt ./
 
 # niente uv: il venv lo crea python direttamente (pip da ensurepip)
-RUN python -m venv .venv \
- && .venv/bin/pip install --no-cache-dir -r requirements.txt
+# cache mount: i download pip sopravvivono ai rebuild, senza sporcare il layer
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m venv .venv \
+ && .venv/bin/pip install -r requirements.txt
 
 # Codice sorgente (whitelist esplicita: solo il necessario, niente tooling/secreti)
 COPY app/ ./app/
-COPY .streamlit/ ./ .streamlit/
+COPY .streamlit/ ./.streamlit/
 
 # Pulizia caches e bytecode prima di copiare nel runtime
 RUN find /app -type d -name __pycache__ -prune -exec rm -rf {} + \
