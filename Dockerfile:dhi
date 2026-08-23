@@ -10,11 +10,11 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# Solo requirements.txt: pyproject.toml non è letto da `pip install -r`
-COPY requirements.txt ./
-
 # niente uv: il venv lo crea python direttamente (pip da ensurepip)
 RUN python -m venv .venv
+
+# Solo requirements.txt: pyproject.toml non è letto da `pip install -r`
+COPY requirements.txt ./
 
 # cache mount: i download pip sopravvivono ai rebuild, senza sporcare il layer
 RUN --mount=type=cache,target=/root/.cache/pip \
