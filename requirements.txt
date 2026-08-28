@@ -20,13 +20,13 @@ certifi==2026.7.22
     # via requests
 charset-normalizer==3.5.1
     # via requests
-click==8.4.2
+click==8.5.0
     # via
     #   streamlit
     #   uvicorn
 dill==0.4.1
     # via pylint
-grinning-cat-python-sdk @ git+https://github.com/DEH-RAG/grinning-cat-python-sdk.git@6d1b2b0c5f200c79486015ecc44162e3f108ad79
+grinning-cat-python-sdk @ git+https://github.com/DEH-RAG/grinning-cat-python-sdk.git@e650505698b7c837bd8006bed8edcd75d6d7e098
     # via grinning-cat-admin (pyproject.toml)
 h11==0.16.0
     # via uvicorn
@@ -52,7 +52,7 @@ markupsafe==3.0.3
     # via jinja2
 mccabe==0.7.0
     # via pylint
-msgpack==1.2.1
+msgpack==1.2.2
     # via grinning-cat-admin (pyproject.toml)
 narwhals==2.25.0
     # via altair
@@ -69,15 +69,15 @@ pandas==3.0.5
     # via streamlit
 pillow==12.3.0
     # via streamlit
-platformdirs==4.11.3
+platformdirs==4.11.5
     # via pylint
 protobuf==7.36.0
     # via streamlit
 pyarrow==25.0.1
     # via streamlit
-pydantic==2.13.4
+pydantic==2.13.5
     # via grinning-cat-python-sdk
-pydantic-core==2.46.4
+pydantic-core==2.46.5
     # via pydantic
 pydeck==0.9.3
     # via streamlit
@@ -133,8 +133,11 @@ tomlkit==0.15.1
 typing-extensions==4.16.0
     # via
     #   altair
+    #   anyio
     #   pydantic
     #   pydantic-core
+    #   referencing
+    #   starlette
     #   streamlit
     #   typing-inspection
 typing-inspection==0.4.4
