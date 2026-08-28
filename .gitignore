@@ -3,6 +3,8 @@
 .omo/
 .opencode/
 .sisyphus/
+.codebase-memory/
+docs/
 AGENTS.md
 
 __pycache__
