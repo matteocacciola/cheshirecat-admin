@@ -391,22 +391,6 @@ def _management_mode(cookie_me: Dict | None):
                 spinner_container.empty()
             st.rerun()
 
-    if plugin_settings and st.button("Reset to factory defaults", key="reset_mgmt_message"):
-        try:
-            spinner_container = show_overlay_spinner("Resetting management message settings...")
-            client.custom.post_custom(
-                f"/plugins/system/settings/{plugin_id}",
-                DEFAULT_SYSTEM_KEY,
-            )
-            st.session_state["toast"] = {
-                "message": "Management message settings reset successfully!", "icon": "✅"
-            }
-        except Exception as e:
-            st.session_state["toast"] = {"message": f"Error resetting management message settings: {e}", "icon": "❌"}
-        finally:
-            spinner_container.empty()
-        st.rerun()
-
 
 def utilities_management(cookie_me: Dict | None):
     st.title("System Management Dashboard")
