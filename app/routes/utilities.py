@@ -10,7 +10,6 @@ from app.utils import (
     has_access,
     run_toast,
     cache_cookie_me,
-    get_settings,
     render_json_form,
 )
 from app.constants import DEFAULT_SYSTEM_KEY
@@ -346,10 +345,21 @@ def _management_mode(cookie_me: Dict | None):
 
     plugin_id = "mgmt_message"
     try:
-        plugin_settings, plugin_types = get_settings(
-            client.custom.get_custom(f"/plugins/system/settings/{plugin_id}", DEFAULT_SYSTEM_KEY),
-            is_selected=True,
-        )
+        # client.custom.get_custom returns the raw JSON dict, not an SDK object
+        raw = client.custom.get_custom(f"/plugins/system/settings/{plugin_id}", DEFAULT_SYSTEM_KEY)
+        plugin_settings = dict(raw.get("value") or {})
+        scheme = raw.get("scheme") or {}
+
+        types = {}
+        for k, v in scheme.get("properties", {}).items():
+            if k not in plugin_settings:
+                plugin_settings[k] = v.get("default")
+            descriptor = {"type": v.get("type") or "string"}
+            for field in ("description", "enum", "format"):
+                val = v.get(field)
+                if val is not None:
+                    descriptor[field] = val
+            types[k] = descriptor
     except Exception as e:
         st.error(f"Error fetching management message settings: {e}")
         return
@@ -357,7 +367,7 @@ def _management_mode(cookie_me: Dict | None):
     with st.form("management_mode_form", clear_on_submit=False, enter_to_submit=False):
         edited_settings = {}
         if plugin_settings:
-            edited_settings = render_json_form(plugin_settings, plugin_types)
+            edited_settings = render_json_form(plugin_settings, types)
 
         if not edited_settings:
             st.text("No settings available. Click 'Save' to apply defaults.")
