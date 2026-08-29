@@ -127,11 +127,15 @@ def _render_installed_plugin_admins(
     core_plugins_ids: List[str] | None = None,
 ):
     """Render a single installed plugin row."""
-    col0, col1, col2, col3 = st.columns([0.05, 0.63, 0.1, 0.22])
+    col0, col1, col2, col3 = st.columns([0.05, 0.6, 0.13, 0.22])
 
     _render_installed_plugin_common_parts(col0, col1, p)
 
     with col2:
+        if has_access("SYSTEM", "WRITE", cookie_me, only_admin=True):
+            if st.button("Settings", key=f"settings_{p.id}"):
+                manage_system_plugin(p.id, p.local_info.get("active", False))
+
         if (
                 has_access("SYSTEM", "READ", cookie_me, only_admin=True)
                 and st.button("View Details", key=f"view_{p.id}")
@@ -333,6 +337,87 @@ def _list_plugins_installed(
         # Pagination controls for installed plugins
         if total_pages > 1:
             _render_pagination_controls("installed", current_page, total_pages)
+
+
+@st.dialog(title="Manage System Plugin", width="large")
+def manage_system_plugin(plugin_id: str, is_plugin_active: bool):
+    client = GrinningCatClient(build_client_configuration())
+
+    st.header(f"Manage System Plugin: **{plugin_id}**")
+
+    # if the plugin is active, fetch its settings and display them in a form to be edited
+    plugin_settings = {}
+    if is_plugin_active:
+        try:
+            plugin_settings, plugin_types = get_settings(
+                client.admins.get_plugin_settings(plugin_id),
+                is_selected=True,
+            )
+            if plugin_settings:
+                st.subheader("Plugin Settings")
+                with st.form("system_plugin_settings_form", clear_on_submit=True, enter_to_submit=True):
+                    # Render the form
+                    edited_settings = render_json_form(plugin_settings, plugin_types)
+
+                    if st.form_submit_button("Save Changes"):
+                        spinner_container = show_overlay_spinner("Saving plugin settings...")
+                        try:
+                            client.custom.put_custom(
+                                f"/plugins/system/settings/{plugin_id}",
+                                DEFAULT_SYSTEM_KEY,
+                                payload=edited_settings,
+                            )
+                            st.session_state["toast"] = {
+                                "message": f"Plugin {plugin_id} settings updated successfully!", "icon": "✅"
+                            }
+                        except json.JSONDecodeError:
+                            st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
+                        except Exception as e:
+                            st.session_state["toast"] = {"message": f"Error updating plugin settings: {e}", "icon": "❌"}
+                        finally:
+                            spinner_container.empty()
+                        st.rerun()
+        except Exception as e:
+            st.error(f"Error fetching plugin settings: {e}")
+    else:
+        st.warning("""This plugin is not currently active.
+You have to activate the plugin before managing its settings.""")
+
+        try:
+            plugin_settings = client.admins.get_plugin_settings(plugin_id)
+            with st.expander("Plugin's default configuration", icon="⚙️"):
+                st.json(get_settings(plugin_settings, is_selected=False)[0])
+        except Exception as e:
+            st.error(f"Error fetching plugin settings: {e}")
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+    # in any case, display a button to reset the plugin settings (only when active)
+    with col1:
+        if is_plugin_active and plugin_settings and st.button("Reset Plugin"):
+            spinner_container = show_overlay_spinner("Resetting the plugin to the factory status...")
+            try:
+                client.custom.post_custom(
+                    f"/plugins/system/settings/{plugin_id}",
+                    DEFAULT_SYSTEM_KEY,
+                )
+                st.session_state["toast"] = {
+                    "message": f"Plugin {plugin_id} reset successfully!",
+                    "icon": "✅",
+                }
+            except Exception as e:
+                st.session_state["toast"] = {
+                    "message": f"Error resetting plugin: {e}",
+                    "icon": "❌"
+                }
+            finally:
+                spinner_container.empty()
+            st.rerun()
+
+    with col2:
+        if st.button("Back to list"):
+            st.rerun()
 
 
 @st.dialog(title="Plugin Details", width="large")
