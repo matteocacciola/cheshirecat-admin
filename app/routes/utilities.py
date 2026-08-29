@@ -10,6 +10,7 @@ from app.utils import (
     has_access,
     run_toast,
     cache_cookie_me,
+    get_settings,
     render_json_form,
 )
 from app.constants import DEFAULT_SYSTEM_KEY
@@ -345,21 +346,12 @@ def _management_mode(cookie_me: Dict | None):
 
     plugin_id = "mgmt_message"
     try:
-        # client.custom.get_custom returns the raw JSON dict, not an SDK object
-        raw = client.custom.get_custom(f"/plugins/system/settings/{plugin_id}", DEFAULT_SYSTEM_KEY)
-        plugin_settings = dict(raw.get("value") or {})
-        scheme = raw.get("scheme") or {}
-
-        types = {}
-        for k, v in scheme.get("properties", {}).items():
-            if k not in plugin_settings:
-                plugin_settings[k] = v.get("default")
-            descriptor = {"type": v.get("type") or "string"}
-            for field in ("description", "enum", "format"):
-                val = v.get(field)
-                if val is not None:
-                    descriptor[field] = val
-            types[k] = descriptor
+        # read through the standard SDK admin endpooint (same as the embedder
+        # read path) returning a PluginSettingsOutput object with .value/.scheme
+        plugin_settings, types = get_settings(
+            client.admins.get_plugin_settings(plugin_id),
+            is_selected=True,
+        )
     except Exception as e:
         st.error(f"Error fetching management message settings: {e}")
         return
@@ -375,6 +367,8 @@ def _management_mode(cookie_me: Dict | None):
         if st.form_submit_button("Save"):
             try:
                 spinner_container = show_overlay_spinner("Saving management message settings...")
+                # standard system plugin settings route (same pattern as the
+                # embedder PUT /embedder/settings/{name})
                 client.custom.put_custom(
                     f"/plugins/system/settings/{plugin_id}",
                     DEFAULT_SYSTEM_KEY,
