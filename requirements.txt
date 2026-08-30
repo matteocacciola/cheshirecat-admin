@@ -26,7 +26,7 @@ click==8.5.0
     #   uvicorn
 dill==0.4.1
     # via pylint
-grinning-cat-python-sdk @ git+https://github.com/DEH-RAG/grinning-cat-python-sdk.git@45b25f6473c17511c179ba32ca8e077361cffe1e
+grinning-cat-python-sdk @ git+https://github.com/DEH-RAG/grinning-cat-python-sdk.git@24e3a41a35c5796768a3ff99cef3d6ce296a9a6f
     # via grinning-cat-admin (pyproject.toml)
 h11==0.16.0
     # via uvicorn
