@@ -367,10 +367,11 @@ def _management_mode(cookie_me: Dict | None):
         if st.form_submit_button("Save"):
             try:
                 spinner_container = show_overlay_spinner("Saving management message settings...")
-                # standard system plugin settings route (same pattern as the
-                # embedder PUT /embedder/settings/{name})
+                # plugin-owned system settings route (moved out of the core:
+                # PUT /mgmt_message/settings, SYSTEM WRITE — same pattern as
+                # the embedder PUT /embedder/settings/{name})
                 client.custom.put_custom(
-                    f"/plugins/system/settings/{plugin_id}",
+                    "/mgmt_message/settings",
                     DEFAULT_SYSTEM_KEY,
                     payload=edited_settings,
                 )
