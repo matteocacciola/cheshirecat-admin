@@ -302,6 +302,9 @@ def render_json_form(data: Dict, types: Dict, prefix: str = "") -> Dict:
             if is_secret_field():
                 # type="password" gives Streamlit's native show/hide eye toggle
                 return st.text_input(key, value=value, type="password", key=path, help=hint)
+            if isinstance(value, str) and "\n" in value:
+                # Multi-line strings (e.g. prompt templates) -> textarea
+                return st.text_area(key, value=value, height=150, key=path, help=hint)
             return st.text_input(key, value=value, key=path, help=hint)
         if field_type == "json":
             # For nested structures, show as editable JSON text
