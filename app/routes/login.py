@@ -1,10 +1,14 @@
 import time
 import streamlit as st
-from streamlit_js_eval import set_local_storage
 from grinning_cat_python_sdk import GrinningCatClient
 
-from app.env import get_env
-from app.utils import show_overlay_spinner, build_client_configuration, clear_auth_cookies, cache_cookie_me
+from app.utils import (
+    show_overlay_spinner,
+    build_client_configuration,
+    clear_auth_cookies,
+    set_with_expiry,
+    build_me_data,
+)
 
 
 def login_page():
@@ -31,10 +35,16 @@ def login_page():
             token = token_response.access_token
 
             st.session_state["token"] = token
-            set_local_storage("token", token)
 
-            # now, trigger /me endpoint to cache user info
-            cache_cookie_me()
+            # Persist the token with a simulated expiry envelope. The 'me'
+            # entry is intentionally NOT written here: set_local_storage() is
+            # asynchronous (JS-based) and a st.rerun() fired in the same render
+            # cycle would race against it. We only populate session_state via
+            # _build_me_data(); the 'me' localStorage entry is written on the
+            # next page refresh by _get_cookie_me()/cache_cookie_me() in main.py.
+            set_with_expiry("token", token, token)
+            build_me_data()
+
             st.toast("Login successful!", icon="✅")
 
             spinner_container.empty()

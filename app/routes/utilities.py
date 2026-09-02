@@ -4,7 +4,16 @@ from typing import Dict
 import streamlit as st
 from grinning_cat_python_sdk import GrinningCatClient
 
-from app.utils import show_overlay_spinner, build_client_configuration, has_access, run_toast, cache_cookie_me
+from app.utils import (
+    show_overlay_spinner,
+    build_client_configuration,
+    has_access,
+    run_toast,
+    cache_cookie_me,
+    get_settings,
+    render_json_form,
+)
+from app.constants import DEFAULT_SYSTEM_KEY
 
 
 def _factory_reset(cookie_me: Dict | None):
@@ -320,6 +329,64 @@ def _update_agent(agent_id: str, metadata: Dict, cookie_me: Dict | None):
             st.rerun()
 
 
+def _management_mode(cookie_me: Dict | None):
+    run_toast()
+
+    if not has_access("SYSTEM", "WRITE", cookie_me, only_admin=True):
+        st.error("You do not have access to Management mode.")
+        return
+
+    client = GrinningCatClient(build_client_configuration())
+
+    st.header("Management Mode")
+    st.caption(
+        "Configure the global management/notice message of the instance. "
+        "When management mode is active, only users with SYSTEM permission can access the app."
+    )
+
+    plugin_id = "mgmt_message"
+    try:
+        # read through the standard SDK admin endpooint (same as the embedder
+        # read path) returning a PluginSettingsOutput object with .value/.scheme
+        plugin_settings, types = get_settings(
+            client.admins.get_plugin_settings(plugin_id),
+            is_selected=True,
+        )
+    except Exception as e:
+        st.error(f"Error fetching management message settings: {e}")
+        return
+
+    with st.form("management_mode_form", clear_on_submit=False, enter_to_submit=False):
+        edited_settings = {}
+        if plugin_settings:
+            edited_settings = render_json_form(plugin_settings, types)
+
+        if not edited_settings:
+            st.text("No settings available. Click 'Save' to apply defaults.")
+
+        if st.form_submit_button("Save"):
+            try:
+                spinner_container = show_overlay_spinner("Saving management message settings...")
+                # plugin-owned system settings route (moved out of the core:
+                # PUT /mgmt_message/settings, SYSTEM WRITE — same pattern as
+                # the embedder PUT /embedder/settings/{name})
+                client.custom.put_custom(
+                    "/mgmt_message/settings",
+                    DEFAULT_SYSTEM_KEY,
+                    payload=edited_settings,
+                )
+                st.session_state["toast"] = {
+                    "message": "Management message settings updated successfully!", "icon": "✅"
+                }
+            except json.JSONDecodeError:
+                st.session_state["toast"] = {"message": "Invalid JSON format", "icon": "❌"}
+            except Exception as e:
+                st.session_state["toast"] = {"message": f"Error updating management message settings: {e}", "icon": "❌"}
+            finally:
+                spinner_container.empty()
+            st.rerun()
+
+
 def utilities_management(cookie_me: Dict | None):
     st.title("System Management Dashboard")
 
@@ -336,6 +403,10 @@ def utilities_management(cookie_me: Dict | None):
         "Create Agent": {
             "page": "create_agent",
             "permission": has_access("CHESHIRE_CAT", "WRITE", cookie_me, only_admin=True),
+        },
+        "Management mode": {
+            "page": "management_mode",
+            "permission": has_access("SYSTEM", "WRITE", cookie_me, only_admin=True),
         },
         "Factory Reset": {
             "page": "factory_reset",
@@ -360,6 +431,10 @@ def utilities_management(cookie_me: Dict | None):
 
     if menu_options[choice]["page"] == "create_agent":
         _create_agent(cookie_me)
+        return
+
+    if menu_options[choice]["page"] == "management_mode":
+        _management_mode(cookie_me)
         return
 
     if menu_options[choice]["page"] == "factory_reset":

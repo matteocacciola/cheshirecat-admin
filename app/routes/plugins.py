@@ -101,7 +101,7 @@ def _render_installed_plugin_common_parts(col0, col1, p):
         # st.image(img, width="stretch")
 
     with col1:
-        with st.expander(f"Plugin: {p.name} (ID: {p.id})", icon="🔌"):
+        with st.expander(f"{p.name} (ID: {p.id})", icon="🔌"):
             st.json(p.model_dump())
 
 
@@ -244,7 +244,9 @@ def _list_plugins_admins(client: GrinningCatClient, search_query: str, cookie_me
         st.write(f"Found {len(plugins.registry)} plugins:")
 
         if plugins.registry:
-            sorted_registry = sorted(plugins.registry, key=lambda x: x.name)
+            sorted_registry = sorted(
+                plugins.registry, key=lambda x: (x.name or "").lower()
+            )
             paginated_registry, current_page, total_pages = _paginate_items(
                 sorted_registry, "registry", ITEMS_PER_PAGE
             )
@@ -268,7 +270,7 @@ def _list_plugins_admins(client: GrinningCatClient, search_query: str, cookie_me
                     # st.image(img, width="stretch")
 
                 with col1:
-                    with st.expander(f"Plugin: {registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
+                    with st.expander(f"{registry_plugin.name} (Version: {registry_plugin.version})", icon="🔌"):
                         st.write(f"**Version**: {registry_plugin.version}")
                         st.write(f"**Author**: {registry_plugin.author_name} - [Profile]({registry_plugin.author_url})")
                         st.write(f"**Description**: {registry_plugin.description or 'No description provided'}")
@@ -314,8 +316,11 @@ def _list_plugins_installed(
     if plugins.installed:
         untoggling_plugins_ids = client.custom.get_custom("/admins/core_plugins/untoggling", DEFAULT_SYSTEM_KEY)
 
+        sorted_installed = sorted(
+            plugins.installed, key=lambda x: (x.name or "").lower()
+        )
         paginated_installed, current_page, total_pages = _paginate_items(
-            plugins.installed, "installed", ITEMS_PER_PAGE
+            sorted_installed, "installed", ITEMS_PER_PAGE
         )
 
         # Display paginated installed plugins
@@ -411,7 +416,7 @@ def manage_plugin(plugin_id: str, untoggling_plugins_ids: List[str]):
             )
             if plugin_settings:
                 st.subheader("Plugin Settings")
-                with st.form("plugin_settings_form", clear_on_submit=True, enter_to_submit=False):
+                with st.form("plugin_settings_form", clear_on_submit=True, enter_to_submit=True):
                     # Render the form
                     edited_settings = render_json_form(plugin_settings, plugin_types)
 
@@ -436,7 +441,10 @@ def manage_plugin(plugin_id: str, untoggling_plugins_ids: List[str]):
 You have to activate the plugin before managing its settings.""")
 
         try:
-            plugin_settings = client.admins.get_plugin_settings(plugin_id)
+            # the system-level plugin settings routes moved into the
+            # mgmt_message plugin; for a not-active plugin the per-agent read
+            # returns the model defaults (same content shown before)
+            plugin_settings = client.plugins.get_plugin_settings(plugin_id, agent_id)
             with st.expander("Plugin's default configuration", icon="⚙️"):
                 st.json(get_settings(plugin_settings, is_selected=False)[0])
         except Exception as e:

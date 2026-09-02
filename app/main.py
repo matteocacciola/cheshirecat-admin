@@ -5,15 +5,24 @@ from typing import Dict
 import streamlit as st
 from dotenv import load_dotenv
 from grinning_cat_python_sdk import GrinningCatClient
-from streamlit_js_eval import get_local_storage
 
 from app.constants import CHECK_INTERVAL, WELCOME_MESSAGE
 from app.env import get_env
+from app.utils import (
+    get_with_expiry,
+    build_agents_options_select,
+    build_client_configuration,
+    cache_cookie_me,
+    clear_auth_cookies,
+    has_access,
+    is_system_agent_selected,
+)
 from app.routes.agentic_workflows import agentic_workflows_management
 from app.routes.auth_handlers import auth_handlers_management
 from app.routes.chunkers import chunkers_management
 from app.routes.context_retriever import context_retrievers_management
 from app.routes.embedders import embedders_management
+from app.routes.ingestion import ingestion_management
 from app.routes.file_managers import file_managers_management
 from app.routes.llms import llms_management
 from app.routes.loading import loading_page
@@ -25,34 +34,44 @@ from app.routes.rabbit_hole import rabbit_hole_management
 from app.routes.users import users_management
 from app.routes.utilities import utilities_management
 from app.routes.vector_databases import vector_databases_management
-from app.utils import (
-    build_client_configuration,
-    clear_auth_cookies,
-    has_access,
-    is_system_agent_selected,
-    build_agents_options_select,
-)
 from app.routes.welcome import welcome
 
 
 def _get_cookie_me() -> Dict | None:
-    """Check if the user is logged in by credentials."""
-    # First check session state (immediate updates)
+    """Return the current user's 'me' dict from session_state or localStorage."""
+    # session_state is authoritative within a Streamlit session
     if "me" in st.session_state:
         return st.session_state["me"]
 
-    # Fall back to cookie (for page refreshes/new sessions)
-    cookie_me = get_local_storage("me")
+    # On a true browser page-refresh session_state is empty; try localStorage.
+    # Use a session-scoped key so Streamlit does not memoize a stale "" across
+    # different browser sessions.
+    cookie_me = get_with_expiry(
+        "me", component_key=f"getLS_me_{st.session_state['_session_key']}"
+    )
     if not cookie_me:
         return None
 
     try:
         me = json.loads(cookie_me)
-        st.session_state["me"] = me  # Cache it
-        return me
     except json.JSONDecodeError as e:
-        print(f"Error decoding 'me' cookie: {e}")
+        print(f"Error decoding 'me' localStorage entry: {e}")
         return None
+
+    # Lightweight entry (only username/id/exp written after the login fix):
+    # re-fetch full data from the API.
+    if "agents" not in me:
+        token = st.session_state.get("token")
+        if token:
+            try:
+                cache_cookie_me()
+                return st.session_state.get("me")
+            except Exception as e:
+                print(f"Error rehydrating me from API: {e}")
+        return None
+
+    st.session_state["me"] = me
+    return me
 
 
 def _build_agents_toggle_select(k: str, cookie_me: Dict | None):
@@ -200,6 +219,10 @@ def _render_sidebar_navigation(cookie_me: Dict | None):
                 "page": "embedders",
                 "allowed": has_access("EMBEDDER", None, cookie_me, only_admin=True),
             },
+            "⚙️ Ingestion": {
+                "page": "ingestion",
+                "allowed": has_access("SYSTEM", None, cookie_me, only_admin=True),
+            },
         },
         "menu_data": {
             "🔪 Chunkers": {
@@ -316,49 +339,50 @@ async def _main():
         st.error("Grinning Cat backend is offline. Please check your connection.")
         return
 
-    # Add a flag to track if we've attempted cookie check
-    st.session_state["token"] = st.session_state.get("token", get_env("GRINNING_CAT_API_KEY"))
-    st.session_state["initial_auth_check_done"] = st.session_state.get(
-        "initial_auth_check_done", st.session_state["token"] is not None,
-    )
+    # Assign a stable per-session key used to avoid Streamlit memoizing
+    # get_local_storage() results across different browser sessions.
+    if "_session_key" not in st.session_state:
+        import uuid
+        st.session_state["_session_key"] = uuid.uuid4().hex
 
-    cookie_token = st.session_state["token"]
-    if not cookie_token:
-        st.title(WELCOME_MESSAGE)
-
-        # First time: check for cookie without blocking UI
-        if not st.session_state["initial_auth_check_done"]:
-            # Mark that we've started the check
-            st.session_state["initial_auth_check_done"] = True
-
-            # Try to get cookie (async - returns None initially)
-            cookie_token = get_local_storage("token")
-            if cookie_token:
-                # If we get a token immediately (rare), use it
-                st.session_state["token"] = cookie_token
-                time.sleep(1)
-                st.rerun()  # Safe rerun now that we have token
-
-            # Most common case: cookie check is async
-            # Show loading state instead of login page
-            loading_page()
-            return
-
-        # Normal flow continues after initial check
-        cookie_token = get_local_storage("token")  # Try again after async result
-        if cookie_token:
-            st.session_state["token"] = cookie_token
-            time.sleep(1)
-            st.rerun()
-
-        login_page()
-
+    # If token is already in session_state this is an internal rerun (e.g.
+    # post-login): skip the async localStorage cycle and go straight to the app.
+    if st.session_state.get("token"):
+        cookie_me = _get_cookie_me()
+        _render_sidebar_navigation(cookie_me)
+        await _render_page(cookie_me)
         return
 
-    cookie_me = _get_cookie_me()
+    # --- First render after a true browser page-refresh ---
+    # session_state is empty; we need to read the token from localStorage
+    # asynchronously (via the web component).
+    st.title(WELCOME_MESSAGE)
 
-    # Render sidebar navigation and get selected page
-    _render_sidebar_navigation(cookie_me)
+    if not st.session_state.get("initial_auth_check_done"):
+        # First render: fire the async localStorage read and show a loading screen.
+        st.session_state["initial_auth_check_done"] = True
+        get_with_expiry(
+            "token", component_key=f"getLS_token_{st.session_state['_session_key']}"
+        )
+        loading_page()
+        return
+
+    # Second render: the iframe has responded; read the cached result.
+    cookie_token = get_with_expiry(
+        "token", component_key=f"getLS_token_{st.session_state['_session_key']}"
+    )
+    if cookie_token:
+        st.session_state["token"] = cookie_token
+        time.sleep(0.5)
+        st.rerun()
+        return
+
+    # No (valid) token found → show login page.
+    login_page()
+
+
+async def _render_page(cookie_me: Dict | None):
+    """Dispatch to the correct page based on selected_page."""
     current_page = st.session_state["selected_page"]
 
     if current_page == "chat":
@@ -390,6 +414,10 @@ async def _main():
 
     if current_page == "embedders":
         embedders_management(cookie_me)
+        return
+
+    if current_page == "ingestion":
+        ingestion_management(cookie_me)
         return
 
     if current_page == "file_handlers":

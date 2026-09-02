@@ -1,11 +1,14 @@
+import base64
 import json
+import re
+import time
 from typing import Dict, Any, List, Tuple
 from grinning_cat_python_sdk.models.api.nested.plugins import PluginSettingsOutput
 from slugify import slugify
 import streamlit as st
 from grinning_cat_python_sdk import GrinningCatClient, Configuration
 from grinning_cat_python_sdk.models.api.factories import FactoryObjectSettingOutput
-from streamlit_js_eval import set_local_storage
+from streamlit_js_eval import get_local_storage, set_local_storage, remove_local_storage
 
 from app.constants import DEFAULT_SYSTEM_KEY
 from app.env import get_env, get_env_bool
@@ -14,17 +17,24 @@ from app.env import get_env, get_env_bool
 def get_settings(
     settings: PluginSettingsOutput, is_selected: bool
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-    if is_selected:
-        return settings.value, {}
+    # values come from the saved config when selected, from scheme defaults otherwise
+    values = dict(settings.value) if is_selected else {}
 
-    if not settings.scheme:
-        return {}, {}
-
-    values = {}
     types = {}
-    for k, v in settings.scheme.properties.items():
-        values[k] = v.default
-        types[k] = v.type
+    if settings.scheme:
+        for k, v in settings.scheme.properties.items():
+            if k not in values:
+                values[k] = v.default
+            descriptor = {"type": v.type or "string"}
+            # PropertySettingsOutput exposes JSON-Schema metadata directly; also
+            # fall back to `extra` for older SDK versions that only surface it there.
+            for field in ("description", "enum", "format"):
+                val = getattr(v, field, None)
+                if val is None and v.extra and isinstance(v.extra, dict):
+                    val = v.extra.get(field)
+                if val is not None:
+                    descriptor[field] = val
+            types[k] = descriptor
     return values, types
 
 
@@ -41,9 +51,10 @@ def get_factory_settings(
     Returns:
         A tuple containing two dictionaries:
             - The first dictionary contains the current values of the factory settings.
-            - The second dictionary contains the types of the factory settings.
+            - The second dictionary contains per-field descriptors with the field
+              type and any JSON-Schema metadata (description, enum, format).
     """
-    def get_type():
+    def get_type(v):
         if "type" in v:
             return v["type"]
         if "anyOf" in v:
@@ -51,15 +62,20 @@ def get_factory_settings(
             return tmp_types[0] if tmp_types else "string"
         return "string"
 
-    if is_selected:
-        return factory.value, {}
+    # values come from the saved config when selected, from scheme defaults otherwise
+    values = dict(factory.value) if is_selected else {}
 
-    values = {}
     types = {}
-    for k, v in factory.scheme.get("properties", {}).items():
-        if isinstance(v, dict):
-            values[k] = v.get("default")
-            types[k] = get_type()
+    if factory.scheme:
+        for k, v in factory.scheme.get("properties", {}).items():
+            if isinstance(v, dict):
+                if k not in values:
+                    values[k] = v.get("default")
+                descriptor = {"type": get_type(v)}
+                for field in ("description", "enum", "format"):
+                    if field in v and v[field] is not None:
+                        descriptor[field] = v[field]
+                types[k] = descriptor
     return values, types
 
 
@@ -216,10 +232,18 @@ def build_client_configuration():
 
 
 def render_json_form(data: Dict, types: Dict, prefix: str = "") -> Dict:
-    """Recursively render form fields for JSON data."""
+    """Recursively render form fields for JSON data.
+
+    `types` maps each field name to either a plain type string (legacy) or a
+    descriptor dict with keys: type, description, enum, format. Descriptors
+    come from the JSON-Schema produced by Pydantic, so the description is
+    shown as a help tooltip, enum values become a chooser and password-like
+    fields are rendered masked (Streamlit adds a native show/hide eye icon).
+    """
+
     def infer_type() -> str:
         if value is None:
-            return types.get(key, "string")
+            return types.get(key, "string") if isinstance(types.get(key), str) else "string"
         if isinstance(value, bool):
             return "boolean"
         if isinstance(value, int):
@@ -232,20 +256,60 @@ def render_json_form(data: Dict, types: Dict, prefix: str = "") -> Dict:
             return "json"
         return "string"
 
+    def get_descriptor() -> Dict[str, Any]:
+        t = types.get(key, "string")
+        if isinstance(t, dict):
+            return t
+        return {"type": t}
+
+    def is_secret_field() -> bool:
+        desc = get_descriptor()
+        if desc.get("format") in ("password", "api-key", "secret", "bearer"):
+            return True
+        name = key.lower()
+        return (
+            "password" in name
+            or name.endswith("api_key")
+            or name.endswith("apikey")
+            or name.endswith("secret")
+            or name.endswith("_key")
+            or name.endswith("_token")
+            or name == "token"
+        )
+
     def create_input_field() -> Any:
+        desc = get_descriptor()
         field_type = infer_type()
+        hint = desc.get("description")
+
+        # Enum values -> chooser (selectbox)
+        enum_values = desc.get("enum")
+        if isinstance(enum_values, list) and enum_values:
+            options = [str(o) for o in enum_values]
+            current = "" if value is None else str(value)
+            if current not in options:
+                options = [current] + options if current else options
+            index = options.index(current) if current in options else 0
+            return st.selectbox(key, options, index=index, key=path, help=hint)
+
         if field_type == "boolean":
-            return st.checkbox(key, value=value, key=path)
+            return st.checkbox(key, value=value, key=path, help=hint)
         if field_type == "integer":
-            return st.number_input(key, value=value, step=1, key=path)
+            return st.number_input(key, value=value, step=1, key=path, help=hint)
         if field_type == "float":
-            return st.number_input(key, value=value, step=0.1, format="%.2f", key=path)
+            return st.number_input(key, value=value, step=0.1, format="%.2f", key=path, help=hint)
         if field_type == "string":
-            return st.text_input(key, value=value, key=path)
+            if is_secret_field():
+                # type="password" gives Streamlit's native show/hide eye toggle
+                return st.text_input(key, value=value, type="password", key=path, help=hint)
+            if isinstance(value, str) and "\n" in value:
+                # Multi-line strings (e.g. prompt templates) -> textarea
+                return st.text_area(key, value=value, height=150, key=path, help=hint)
+            return st.text_input(key, value=value, key=path, help=hint)
         if field_type == "json":
             # For nested structures, show as editable JSON text
             json_str = json.dumps(value, indent=2)
-            r = st.text_area(key, value=json_str, height=100, key=path)
+            r = st.text_area(key, value=json_str, height=100, key=path, help=hint)
             try:
                 return json.loads(r)
             except:
@@ -286,22 +350,138 @@ def has_access(resource: str, required_role: str | None, cookie_me: Dict | None,
 
 
 def clear_auth_cookies():
-    """Clear authentication-related cookies."""
-    set_local_storage("token", "")
-    set_local_storage("me", "")
+    """Clear authentication-related localStorage entries."""
+    remove_local_storage("token")
+    remove_local_storage("me")
 
 
 def is_system_agent_selected() -> bool:
     return st.session_state.get("agent_id") == DEFAULT_SYSTEM_KEY
 
 
-def cache_cookie_me():
+def _get_exp_from_jwt(token: str) -> int:
+    """
+    Extract the 'exp' claim (unix timestamp) from a JWT token payload.
+    Falls back to now + GRINNING_CAT_JWT_EXPIRE_MINUTES if the token is not a
+    decodable JWT (e.g. API-key mode), so the expiry simulation always yields a
+    timestamp.
+    """
+    try:
+        payload = token.split(".")[1]
+        # base64url decode with padding
+        padding = "=" * (-len(payload) % 4)
+        decoded = base64.urlsafe_b64decode(payload + padding)
+        claims = json.loads(decoded)
+        exp = claims.get("exp")
+        if isinstance(exp, int):
+            return exp
+    except Exception:
+        pass
+
+    return int(time.time()) + int(get_env("GRINNING_CAT_JWT_EXPIRE_MINUTES")) * 60
+
+
+def set_with_expiry(key: str, value: str, token: str):
+    """
+    Write a value to localStorage wrapped in an envelope:
+        {"value": ..., "expire": <unix timestamp>}
+    The expire timestamp is derived from the JWT exp claim so the simulated
+    expiry is aligned with the server-side token validity.
+    """
+    envelope = {"value": value, "expire": _get_exp_from_jwt(token)}
+    set_local_storage(key, json.dumps(envelope))
+
+
+def get_with_expiry(key: str, component_key: str | None = None) -> str | None:
+    """
+    Read a value from localStorage, honoring the simulated expiry envelope.
+    Returns None (and removes the entry) if the stored expire timestamp is in
+    the past. If the stored value is not an envelope (legacy/plain data), it is
+    returned as-is for backward compatibility.
+    """
+    raw = get_local_storage(key, component_key=component_key)
+    if not raw:
+        return None
+
+    try:
+        envelope = json.loads(raw)
+        if not isinstance(envelope, dict) or "expire" not in envelope:
+            # Not an envelope written by us: legacy value, treat as valid.
+            return envelope if isinstance(envelope, str) else raw
+        if int(envelope.get("expire", 0)) < int(time.time()):
+            # Simulated expiry reached: drop the entry and treat as logged out.
+            remove_local_storage(key)
+            return None
+        return envelope.get("value")
+    except json.JSONDecodeError:
+        # Plain (non-JSON) value stored by older code or tests.
+        return raw
+
+
+def _decode_agents(raw_agents: list) -> list:
+    """
+    Decode the agents list from the JWT response.
+    Each element may be either a dict (already decoded) or a JSON string
+    (as returned by model_dump() on the SDK's JWTPayload model).
+    """
+    result = []
+    for item in raw_agents:
+        if isinstance(item, str):
+            try:
+                result.append(json.loads(item))
+            except json.JSONDecodeError:
+                pass
+        elif isinstance(item, dict):
+            result.append(item)
+    return result
+
+
+def build_me_data() -> Dict:
+    """
+    Call /auth/me and return a normalised me_data dict.
+    Stores the result in st.session_state["me"] but does NOT write any
+    localStorage entry. Use this at login time so that st.rerun() does not
+    race with set_local_storage().
+    """
     client = GrinningCatClient(build_client_configuration())
     res = client.auth.me(st.session_state.get("token"))
-    me_data = res.model_dump()
+    raw = res.model_dump()
 
-    # Store in session state for immediate access
+    decoded_agents = _decode_agents(raw.get("agents", []))
+    first_user = decoded_agents[0].get("user", {}) if decoded_agents else {}
+    me_data = {
+        "username": raw.get("sub", ""),
+        "id": first_user.get("id", ""),
+        "exp": raw.get("exp", ""),
+        "agents": decoded_agents,
+    }
     st.session_state["me"] = me_data
+    return me_data
 
-    # Also update cookie for persistence across sessions
-    set_local_storage("me", json.dumps(me_data))
+
+def write_me_data(me_data: Dict, token: str):
+    """
+    Write the minimal me envelope to localStorage.
+    Call this only when you are NOT about to call st.rerun() in the same
+    render cycle, otherwise the local-storage write will race with the rerun.
+    """
+    me_minimal = {
+        "username": me_data["username"],
+        "id": me_data["id"],
+        "exp": me_data["exp"],
+    }
+    set_with_expiry("me", json.dumps(me_minimal), token)
+
+
+def cache_cookie_me():
+    """
+    Convenience wrapper: fetch /auth/me, store in session_state AND write the
+    minimal localStorage envelope.
+    Use this only on page-refresh rehydration (where no st.rerun() follows
+    immediately). At login time, call _build_me_data() instead.
+    """
+    token = st.session_state.get("token")
+    if not token:
+        return None
+    me_data = build_me_data()
+    write_me_data(me_data, token)

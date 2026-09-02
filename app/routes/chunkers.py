@@ -72,7 +72,7 @@ def _edit_chunker(agent_id: str, chunker_name: str, is_selected: bool, cookie_me
             client.chunker.get_chunker_settings(chunker_name, agent_id),
             is_selected=is_selected
         )
-        with st.form("edit_chunker_form", clear_on_submit=True, enter_to_submit=False):
+        with st.form("edit_chunker_form", clear_on_submit=True, enter_to_submit=True):
             edited_settings = {}
             if chunker_settings:
                 # Render the form

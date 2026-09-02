@@ -72,7 +72,7 @@ def _edit_context_retriever(agent_id: str, context_retriever_name: str, is_selec
             client.context_retriever.get_context_retriever_settings(context_retriever_name, agent_id),
             is_selected=is_selected
         )
-        with st.form("edit_context_retriever_form", clear_on_submit=True, enter_to_submit=False):
+        with st.form("edit_context_retriever_form", clear_on_submit=True, enter_to_submit=True):
             edited_settings = {}
             if context_retriever_settings:
                 # Render the form
