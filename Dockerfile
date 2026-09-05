@@ -1,38 +1,43 @@
 FROM python:3.13-slim-bookworm AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies (if needed for packages like psycopg2 or others)
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
     gcc \
-    curl \
     build-essential \
     libmagic-mgc \
     libmagic1 \
     libmagic-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency files
-COPY ./requirements.txt /app/requirements.txt
-COPY ./pyproject.toml /app/pyproject.toml
+COPY requirements.txt pyproject.toml ./
 
-# Install Python dependencies in a virtual env (but for Docker, we use --user for isolation)
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/install \
+    --upgrade pip setuptools wheel
 
-FROM builder AS runner
+RUN pip install --no-cache-dir --prefix=/install \
+    -r requirements.txt
 
-# Copy source code
+
+FROM python:3.13-slim-bookworm AS runner
+
+WORKDIR /app
+
+COPY --from=builder /install /usr/local
 COPY . .
 
-# Expose Streamlit port
 EXPOSE 8501
 
-# Environment variables for Streamlit (can be overridden at runtime)
 ENV STREAMLIT_SERVER_PORT=8501
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 ENV PYTHONPATH=/app
-ENV PATH=/root/.local/bin:$PATH
 
-# Run the Streamlit app
-CMD ["streamlit", "run", "app/main.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"]
+CMD [
+    "streamlit",
+    "run",
+    "app/main.py",
+    "--server.address=0.0.0.0",
+    "--server.port=8501",
+    "--server.headless=true"
+]
